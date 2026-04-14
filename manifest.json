@@ -1,0 +1,14 @@
+{
+  "name": "e-hentai",
+  "uuid": "dba2a6cf-c495-4416-accf-c29263ab4016",
+  "iconUrl": "",
+  "creator": {
+    "name": "",
+    "describe": "e-hentai minimal reader plugin"
+  },
+  "describe": "e-hentai minimal reader plugin",
+  "version": "0.0.1",
+  "home": "https://e-hentai.org",
+  "updateUrl": "",
+  "function": []
+}

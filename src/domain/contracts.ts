@@ -3,17 +3,20 @@ import type { PluginSettings } from "./types";
 export type PluginFunctionItem = {
   id: string;
   title: string;
-  action: {
-    type: "openSearch";
-    payload: { source: string };
-  };
+  action:
+    | { type: "openSearch"; payload: { source: string; keyword?: string } }
+    | { type: "openComicDetail"; payload: { comicId: string } };
 };
 
 export type InfoContract = {
   name: string;
   uuid: string;
+  iconUrl: string;
+  creator: { name: string; describe: string };
   describe: string;
   version: string;
+  home: string;
+  updateUrl: string;
   function: PluginFunctionItem[];
 };
 

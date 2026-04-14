@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { getInfo, getSettingBundle, getSettingsBundle } from "../src/index";
+import { getInfo, getSettingsBundle } from "../src/index";
 
 describe("info and settings contract", () => {
   test("test_getInfo_returns_plugin_metadata", async () => {
@@ -11,11 +11,9 @@ describe("info and settings contract", () => {
     expect(info.function[0].action.type).toBe("openSearch");
   });
 
-  test("test_getSettingBundle_and_getSettingsBundle_are_consistent", async () => {
-    const legacy = await getSettingBundle();
+  test("test_getSettingsBundle_returns_valid_bundle", async () => {
     const canonical = await getSettingsBundle();
 
-    expect(legacy).toEqual(canonical);
     expect(canonical.scheme.type).toBe("settings");
     expect(canonical.data.values).toEqual({
       site: "EH",

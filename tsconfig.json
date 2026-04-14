@@ -18,8 +18,8 @@
     "rspack.config.ts",
     "rspack.shared.ts",
     "src/**/*.ts",
-    "type/**/*.ts",
-    "type/**/*.d.ts",
+    "types/**/*.ts",
+    "types/**/*.d.ts",
     "test/**/*.ts"
   ]
 }

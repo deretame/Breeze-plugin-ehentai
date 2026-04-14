@@ -1,14 +1,18 @@
+import { runtime } from "../../types/runtime-api";
+import { DEFERRED_IMAGE_PATH } from "../domain/constants";
 import type { FetchImageBytesContract } from "../domain/contracts";
 import type { FetchImageBytesPayload } from "../domain/types";
 import { contractError, PluginError } from "../errors/plugin-error";
 import { httpClient } from "../network/client";
 import { buildImagePageEndpoint } from "../network/endpoints";
-import { extractReloadKeyFromImagePage, isRetryableImagePageHtml, parseImagePage } from "../parsers/reader.parser";
-import { requiredString } from "../utils/guards";
+import {
+  extractReloadKeyFromImagePage,
+  isRetryableImagePageHtml,
+  parseImagePage,
+} from "../parsers/reader.parser";
 import { parseDeferredImageUrl } from "../utils/deferred-image";
+import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl, ensureAllowedMediaUrl } from "../utils/url";
-import { DEFERRED_IMAGE_PATH } from "../domain/constants";
-import { runtime } from "../../type/runtime-api";
 
 function normalizeNativeBufferId(value: unknown): number {
   const nativeBufferId = Number(value);
@@ -18,9 +22,13 @@ function normalizeNativeBufferId(value: unknown): number {
   return nativeBufferId;
 }
 
-async function resolveImageUrlFromImagePage(imagePageHref: string): Promise<string> {
+async function resolveImageUrlFromImagePage(
+  imagePageHref: string,
+): Promise<string> {
   const safeImagePageHref = ensureAllowedHostUrl(imagePageHref);
-  const imagePageHtml = await httpClient.getText(buildImagePageEndpoint(safeImagePageHref));
+  const imagePageHtml = await httpClient.getText(
+    buildImagePageEndpoint(safeImagePageHref),
+  );
 
   try {
     const parsed = parseImagePage(safeImagePageHref, imagePageHtml);
@@ -35,13 +43,18 @@ async function resolveImageUrlFromImagePage(imagePageHref: string): Promise<stri
       throw error;
     }
 
-    const retriedHtml = await httpClient.getText(buildImagePageEndpoint(safeImagePageHref, reloadKey));
+    const retriedHtml = await httpClient.getText(
+      buildImagePageEndpoint(safeImagePageHref, reloadKey),
+    );
     const retried = parseImagePage(safeImagePageHref, retriedHtml);
     return ensureAllowedMediaUrl(retried.imageUrl);
   }
 }
 
-function readDeferredImagePageHref(payload: FetchImageBytesPayload, rawUrl: string): string | undefined {
+function readDeferredImagePageHref(
+  payload: FetchImageBytesPayload,
+  rawUrl: string,
+): string | undefined {
   const extern = payload.extern ?? {};
   const externHref = String(extern.href ?? "").trim();
   if (externHref) {
@@ -65,7 +78,9 @@ function isDeferredPlaceholderUrl(rawUrl: string): boolean {
   }
 }
 
-export async function fetchImageBytesService(payload: FetchImageBytesPayload): Promise<FetchImageBytesContract> {
+export async function fetchImageBytesService(
+  payload: FetchImageBytesPayload,
+): Promise<FetchImageBytesContract> {
   const rawUrl = requiredString(payload.url, "url");
   const deferredImagePageHref = readDeferredImagePageHref(payload, rawUrl);
 

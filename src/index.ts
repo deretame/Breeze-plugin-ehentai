@@ -102,18 +102,12 @@ export async function getSettingsBundle(): Promise<SettingsBundleContract> {
   return getSettingsBundleService();
 }
 
-export async function getSettingBundle(): Promise<SettingsBundleContract> {
-  return getSettingsBundle();
-}
-
 export default {
   getInfo,
   searchComic,
   getComicDetail,
   getChapter,
-  getReadPages,
   getReadSnapshot,
   fetchImageBytes,
   getSettingsBundle,
-  getSettingBundle,
 };
