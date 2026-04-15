@@ -2,12 +2,13 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { fetchImageBytes } from "../src/index";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 import { httpClient } from "../src/network/client";
+import type { NativeApi } from "../types/runtime-globals";
 
 describe("fetchImageBytes contract", () => {
   beforeEach(() => {
     globalThis.native = {
       put: vi.fn().mockResolvedValue(77),
-    };
+    } as unknown as NativeApi;
   });
 
   afterEach(() => {

@@ -34,7 +34,7 @@ describe("detail contract", () => {
     });
     expect(result.data.normal.comicInfo.metadata).toContainEqual({
       type: "tag:artist",
-      name: "artist",
+      name: "艺术家",
       value: [
         {
           name: "foo artist",
@@ -122,15 +122,8 @@ describe("detail contract", () => {
       <div id="taglist">
         <table>
           <tr>
-            <td class="tc">parody:</td>
-            <td><a href="https://e-hentai.org/tag/parody:genshin+impact">genshin impact</a></td>
-          </tr>
-          <tr>
-            <td class="tc">female:</td>
-            <td>
-              <a href="https://e-hentai.org/tag/female:sole+female">sole female</a>
-              <a href="https://e-hentai.org/tag/female:twintails">twintails</a>
-            </td>
+            <td class="tc">language:</td>
+            <td><a href="https://e-hentai.org/tag/language:english">english</a></td>
           </tr>
         </table>
       </div>
@@ -138,46 +131,16 @@ describe("detail contract", () => {
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.data.normal.comicInfo.metadata).toContainEqual({
-      type: "tag:parody",
-      name: "parody",
+      type: "tag:language",
+      name: "语言",
       value: [
         {
-          name: "genshin impact",
+          name: "英语",
           onTap: {
             type: "openSearch",
             payload: {
               source: "ehentai",
-              keyword: "parody:genshin impact",
-              extern: {},
-            },
-          },
-          extension: {},
-        },
-      ],
-    });
-    expect(result.data.normal.comicInfo.metadata).toContainEqual({
-      type: "tag:female",
-      name: "female",
-      value: [
-        {
-          name: "sole female",
-          onTap: {
-            type: "openSearch",
-            payload: {
-              source: "ehentai",
-              keyword: "female:sole female",
-              extern: {},
-            },
-          },
-          extension: {},
-        },
-        {
-          name: "twintails",
-          onTap: {
-            type: "openSearch",
-            payload: {
-              source: "ehentai",
-              keyword: "female:twintails",
+              keyword: "language:english",
               extern: {},
             },
           },

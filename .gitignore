@@ -3,3 +3,4 @@ dist/
 .env
 .aider*
 .you/
+src/data.js

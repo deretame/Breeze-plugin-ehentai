@@ -2,6 +2,7 @@ import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
 import type { ComicDetailContract } from "../domain/contracts";
 import type { DetailParsed } from "../domain/types";
 import { buildMediaPath } from "../utils/media-path";
+import { translateNamespace, translateTag } from "../utils/tag-translation";
 import { sanitizeMediaUrl } from "../utils/url";
 
 function actionItem(
@@ -76,9 +77,12 @@ function buildTagMetadata(detail: DetailParsed): Array<{
       }
       return {
         type: `tag:${normalizedNamespace}`,
-        name: normalizedNamespace,
+        name: translateNamespace(normalizedNamespace),
         value: normalizedTags.map((tag) =>
-          actionItem(tag, openSearchAction(`${normalizedNamespace}:${tag}`)),
+          actionItem(
+            translateTag(normalizedNamespace, tag),
+            openSearchAction(`${normalizedNamespace}:${tag}`),
+          ),
         ),
       };
     })
