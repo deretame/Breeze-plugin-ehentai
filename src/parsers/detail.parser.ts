@@ -59,26 +59,6 @@ function parseTagsByNamespace($: cheerio.CheerioAPI): Record<string, string[]> {
   }, {});
 }
 
-function resolvePreferredTitle(
-  englishTitle: string,
-  japaneseTitle: string,
-  language: string,
-): string {
-  const english = normalizeWhitespace(englishTitle);
-  const japanese = normalizeWhitespace(japaneseTitle);
-  const normalizedLanguage = normalizeWhitespace(language).toLowerCase();
-  const languageIsChinese = normalizedLanguage.includes("chinese");
-  const languageIsJapanese = normalizedLanguage.includes("japanese");
-  const hasHan = /[\u4e00-\u9fff]/.test(english);
-  const hasKana = /[\u3040-\u30ff]/.test(english);
-  const chineseTitle =
-    languageIsChinese || (hasHan && !hasKana && !languageIsJapanese)
-      ? english
-      : "";
-
-  return chineseTitle || japanese || english;
-}
-
 export function parseDetailPage(html: string, comicId: string): DetailParsed {
   const $ = cheerio.load(html);
   const englishTitle = normalizeWhitespace($("#gn").text());
@@ -118,14 +98,15 @@ export function parseDetailPage(html: string, comicId: string): DetailParsed {
   const ratingAverageFromHtml = /Average:\s*([0-9]+(?:\.[0-9]+)?)/i.exec(html)?.[1] ?? "";
   const ratingAverage = ratingAverageFromDom || ratingAverageFromHtml;
   const ratingCount = toInt(normalizeWhitespace(String($("#rating_count").first().text() ?? "")), 0);
-
   const language = tableMap.language || "";
-  const title = resolvePreferredTitle(englishTitle, japaneseTitle, language);
+
+  const title = englishTitle || japaneseTitle;
 
   return {
     gid,
     token,
     title,
+    englishTitle: englishTitle || undefined,
     japaneseTitle: japaneseTitle || undefined,
     category: normalizeWhitespace($("#gdc .cs").text()) || undefined,
     uploader: uploader || undefined,

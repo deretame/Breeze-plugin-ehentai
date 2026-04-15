@@ -52,6 +52,7 @@ export type DetailParsed = {
   gid: string;
   token: string;
   title: string;
+  englishTitle?: string;
   japaneseTitle?: string;
   category?: string;
   uploader?: string;

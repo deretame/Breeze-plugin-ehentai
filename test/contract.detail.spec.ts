@@ -19,16 +19,26 @@ describe("detail contract", () => {
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.scheme.type).toBe("comicDetail");
     expect(result.data.normal.comicInfo.id).toBe("123456/abcdef");
-    expect(result.data.normal.comicInfo.title).toBe("日本語タイトル");
+    expect(result.data.normal.comicInfo.title).toBe("English Gallery Title");
     expect(result.data.normal.comicInfo.cover.url).toBe("https://ehgt.org/c/detail-cover.jpg");
     expect(result.data.normal.comicInfo.cover.path).toBe("123456_abcdef.jpg");
     expect(result.data.normal.comicInfo.titleMeta[0]).toMatchObject({
+      name: "副标题：日本語タイトル",
+      onTap: {},
+      extension: {},
+    });
+    expect(result.data.normal.comicInfo.titleMeta[1]).toMatchObject({
       name: "分类：Manga",
       onTap: {},
       extension: {},
     });
-    expect(result.data.normal.comicInfo.titleMeta[2]).toMatchObject({
+    expect(result.data.normal.comicInfo.titleMeta[3]).toMatchObject({
       name: "语言：English TR",
+      onTap: {},
+      extension: {},
+    });
+    expect(result.data.normal.comicInfo.titleMeta).toContainEqual({
+      name: "副标题：日本語タイトル",
       onTap: {},
       extension: {},
     });

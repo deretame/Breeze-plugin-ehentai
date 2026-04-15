@@ -110,7 +110,13 @@ export function mapComicDetail(
     name: string;
     onTap: Record<string, unknown>;
     extension: Record<string, unknown>;
-  }> = [
+  }> = [];
+
+  if (detail.englishTitle && detail.japaneseTitle) {
+    titleMeta.push(withLabel("副标题", detail.japaneseTitle));
+  }
+
+  titleMeta.push(
     withLabel("分类", detail.category),
     withLabel("上传者", detail.uploader),
     withLabel("语言", detail.language),
@@ -120,7 +126,7 @@ export function mapComicDetail(
       detail.pageCount == null ? undefined : `${detail.pageCount} 页`,
     ),
     withLabel("发布时间", detail.posted),
-  ];
+  );
 
   if (detail.favoritedCount != null) {
     titleMeta.push(withLabel("收藏", `${detail.favoritedCount} 次`));
