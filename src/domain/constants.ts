@@ -5,7 +5,8 @@ export const PLUGIN_DESCRIPTION = "e-hentai minimal reader plugin";
 export const PLUGIN_VERSION = "0.0.1";
 export const PLUGIN_ICON_URL = "";
 export const PLUGIN_HOME = "https://e-hentai.org";
-export const PLUGIN_UPDATE_URL = "";
+export const PLUGIN_UPDATE_URL =
+  "https://api.github.com/repos/deretame/Breeze-plugin-ehentai/releases/latest";
 export const PLUGIN_CREATOR = {
   name: "",
   describe: "e-hentai minimal reader plugin",
