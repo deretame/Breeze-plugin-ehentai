@@ -1,12 +1,16 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { searchComic } from "../src/index";
 import { httpClient } from "../src/network/client";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf-8");
 }
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("search contract", () => {
   test("test_searchComic_valid_keyword_returns_search_result", async () => {

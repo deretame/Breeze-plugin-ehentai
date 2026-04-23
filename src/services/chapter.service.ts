@@ -1,5 +1,6 @@
+import { MAX_CONCURRENT_REQUESTS } from "../domain/constants";
 import type { ChapterContentContract, ReadPagesCompatContract } from "../domain/contracts";
-import type { ChapterPayload, PluginSettings } from "../domain/types";
+import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError, PluginError } from "../errors/plugin-error";
 import { mapChapterContent, mapReadPagesCompat, type ChapterDocInput } from "../mappers/chapter.mapper";
 import { httpClient, mapWithConcurrency } from "../network/client";
@@ -51,20 +52,60 @@ async function resolveChapterDoc(
   }
 }
 
-async function resolveChapterDocs(
+function buildRangeTargets(
+  ranges: ReaderRangeParsed[],
+): Array<{ imagePageHref: string; imageIndex: number }> {
+  return ranges.flatMap((range) =>
+    range.thumbnails.map((thumbnail, offset) => {
+      const imageIndex = range.imageNoFrom + offset + 1;
+      return {
+        imagePageHref: toImagePageHref(thumbnail, imageIndex),
+        imageIndex,
+      };
+    }),
+  );
+}
+
+async function resolveThumbnailRanges(
   comicId: string,
-  page: number,
+  firstRange: ReaderRangeParsed,
   settings: PluginSettings,
-): Promise<{ items: ChapterDocInput[]; pageCount: number }> {
-  const html = await httpClient.getText(buildDetailEndpoint(comicId, settings.site, page - 1));
-  const range = parseThumbnailRangePage(html);
+): Promise<ReaderRangeParsed[]> {
+  if (firstRange.pageCount <= 1) {
+    return [firstRange];
+  }
+
+  const remainingThumbPages = Array.from(
+    { length: Math.max(0, firstRange.pageCount - 1) },
+    (_, index) => index + 2,
+  );
+
+  if (!remainingThumbPages.length) {
+    return [firstRange];
+  }
+
+  const parsedRanges = await mapWithConcurrency(
+    remainingThumbPages,
+    async (thumbPage) => {
+      const detailUrl = buildDetailEndpoint(comicId, settings.site, thumbPage - 1);
+      const html = await httpClient.getText(detailUrl);
+      return parseThumbnailRangePage(html);
+    },
+    MAX_CONCURRENT_REQUESTS,
+  );
+
+  return [firstRange, ...parsedRanges];
+}
+
+async function resolveChapterDocsFromRanges(
+  ranges: ReaderRangeParsed[],
+): Promise<ChapterDocInput[]> {
+  const targets = buildRangeTargets(ranges);
   const skippedErrors: unknown[] = [];
 
-  const settled = await mapWithConcurrency(range.thumbnails, async (thumbnail, offset) => {
-    const imageIndex = range.imageNoFrom + offset + 1;
-
+  const settled = await mapWithConcurrency(targets, async (target) => {
     try {
-      return await resolveChapterDoc(toImagePageHref(thumbnail, imageIndex), imageIndex);
+      return await resolveChapterDoc(target.imagePageHref, target.imageIndex);
     } catch (error) {
       if (error instanceof PluginError && error.code === "UPSTREAM_BLOCKED") {
         throw error;
@@ -74,14 +115,48 @@ async function resolveChapterDocs(
     }
   });
 
-  const valid = settled.filter((item): item is ChapterDocInput => Boolean(item?.imageUrl));
+  const uniqueByIndex = new Map<number, ChapterDocInput>();
+  for (const item of settled) {
+    if (!item?.imageUrl || uniqueByIndex.has(item.index)) {
+      continue;
+    }
+    uniqueByIndex.set(item.index, item);
+  }
+
+  const valid = Array.from(uniqueByIndex.values()).sort((a, b) => a.index - b.index);
   if (!valid.length) {
     throw parseError("no readable page images in chapter", skippedErrors[0]);
+  }
+  return valid;
+}
+
+async function resolveChapterDocs(
+  comicId: string,
+  page: number,
+  settings: PluginSettings,
+  mergeAllThumbnailPagesOnFirstPage = false,
+): Promise<{ items: ChapterDocInput[]; pageCount: number; thumbnailPageCount: number; mergedAllThumbnailPages: boolean }> {
+  const html = await httpClient.getText(buildDetailEndpoint(comicId, settings.site, page - 1));
+  const firstRange = parseThumbnailRangePage(html);
+  const mergedAllThumbnailPages =
+    mergeAllThumbnailPagesOnFirstPage && page === 1 && firstRange.pageCount > 1;
+
+  const ranges = mergedAllThumbnailPages
+    ? await resolveThumbnailRanges(comicId, firstRange, settings)
+    : [firstRange];
+  const valid = await resolveChapterDocsFromRanges(ranges);
+
+  if (!valid.length) {
+    throw parseError("no readable page images in chapter");
   }
 
   return {
     items: valid,
-    pageCount: range.pageCount,
+    // When merging all thumbnail pages into one payload, report one logical page
+    // so callers do not keep requesting page=2 and downloading duplicates.
+    pageCount: mergedAllThumbnailPages ? 1 : firstRange.pageCount,
+    thumbnailPageCount: firstRange.pageCount,
+    mergedAllThumbnailPages,
   };
 }
 
@@ -93,8 +168,16 @@ export async function getChapterService(
   const chapterId = String(payload.chapterId ?? comicId);
   const page = normalizePage(payload.page, 1);
 
-  const resolved = await resolveChapterDocs(comicId, page, settings);
-  return mapChapterContent(comicId, chapterId, page, resolved.pageCount, resolved.items);
+  const resolved = await resolveChapterDocs(comicId, page, settings, true);
+  const mapped = mapChapterContent(comicId, chapterId, page, resolved.pageCount, resolved.items);
+  if (resolved.mergedAllThumbnailPages) {
+    mapped.extern = {
+      ...mapped.extern,
+      thumbnailPageCount: resolved.thumbnailPageCount,
+      mergedAllThumbnailPages: true,
+    };
+  }
+  return mapped;
 }
 
 export async function getReadPagesService(
@@ -104,6 +187,6 @@ export async function getReadPagesService(
   const comicId = requiredString(payload.comicId, "comicId");
   const page = normalizePage(payload.page, 1);
 
-  const resolved = await resolveChapterDocs(comicId, page, settings);
+  const resolved = await resolveChapterDocs(comicId, page, settings, false);
   return mapReadPagesCompat(page, resolved.pageCount, resolved.items);
 }

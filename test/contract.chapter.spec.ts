@@ -25,6 +25,32 @@ function thumbnailFixtureWithHrefs(hrefs: string[]): string {
   `;
 }
 
+function paginatedThumbnailFixture(
+  pageNo: number,
+  pageCount: number,
+  imageStartNo: number,
+  imageTotal: number,
+  hrefs: string[],
+): string {
+  const anchors = hrefs
+    .map((href, index) => `<a href="${href}"><div data-orghash="abcdefghij${imageStartNo + index}"></div></a>`)
+    .join("\n");
+  const imageEndNo = imageStartNo + hrefs.length - 1;
+
+  return `
+    <div class="gtb"><p class="gpc">Showing ${imageStartNo} - ${imageEndNo} of ${imageTotal} images</p></div>
+    <div class="ptds"><a>${pageNo}</a></div>
+    <div class="ptt">
+      <table>
+        <tbody>
+          <tr><td></td><td><a>${pageNo}</a></td><td><a>${pageCount}</a></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="gdt">${anchors}</div>
+  `;
+}
+
 describe("chapter contract", () => {
   test("test_getChapter_valid_payload_returns_ordered_docs", async () => {
     const getTextSpy = vi.spyOn(httpClient, "getText");
@@ -38,6 +64,40 @@ describe("chapter contract", () => {
     expect(result.data.chapter.length).toBe(3);
     expect(result.data.chapter.docs[0].id).toBe("1");
     expect(result.data.chapter.docs[2].id).toBe("3");
+  });
+
+  test("test_getChapter_first_page_merges_all_thumbnail_pages_for_download", async () => {
+    const getTextSpy = vi.spyOn(httpClient, "getText");
+    getTextSpy.mockImplementation(async (url: string) => {
+      if (url.includes("/g/123456/abcdef/") && url.includes("p=1")) {
+        return paginatedThumbnailFixture(2, 2, 3, 4, [
+          "https://e-hentai.org/s/a3/123-3",
+          "https://e-hentai.org/s/a4/123-4",
+        ]);
+      }
+      if (url.includes("/g/123456/abcdef/")) {
+        return paginatedThumbnailFixture(1, 2, 1, 4, [
+          "https://e-hentai.org/s/a1/123-1",
+          "https://e-hentai.org/s/a2/123-2",
+        ]);
+      }
+      if (url.includes("/s/")) {
+        return fixture("image-page.html");
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const result = await getChapter({ comicId: "123456/abcdef", page: 1 });
+    expect(result.data.chapter.length).toBe(4);
+    expect(result.data.chapter.docs.map((doc) => doc.id)).toEqual(["1", "2", "3", "4"]);
+    expect(result.extern).toMatchObject({
+      page: 1,
+      pageCount: 1,
+      hasReachedMax: true,
+      thumbnailPageCount: 2,
+      mergedAllThumbnailPages: true,
+    });
+    expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
   });
 
   test("test_getReadPages_compat_alias_returns_read_pages_shape", async () => {

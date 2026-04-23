@@ -1,4 +1,5 @@
 import { describe, expect, test } from "vitest";
+import { PLUGIN_UUID } from "../src/domain/constants";
 import { getInfo, getSettingsBundle } from "../src/index";
 
 describe("info and settings contract", () => {
@@ -6,9 +7,9 @@ describe("info and settings contract", () => {
     const info = await getInfo();
     expect(info).toMatchObject({
       name: "e-hentai",
-      uuid: "breeze.plugin.ehentai",
+      uuid: PLUGIN_UUID,
     });
-    expect(info.function[0].action.type).toBe("openSearch");
+    expect(info.function).toEqual([]);
   });
 
   test("test_getSettingsBundle_returns_valid_bundle", async () => {
