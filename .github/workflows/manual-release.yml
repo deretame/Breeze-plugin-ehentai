@@ -1,0 +1,59 @@
+name: Manual Release
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Run init script
+        run: node init.js
+
+      - name: Resolve version and update PLUGIN_VERSION
+        id: version
+        run: node build/prepare-release.js
+
+      - name: Install dependencies
+        run: pnpm i
+
+      - name: Build
+        run: pnpm run build
+
+      - name: Ensure release assets exist
+        run: |
+          test -f dist/ehentai.bundle.cjs
+          test -f dist/ehentai.bundle.cjs.br
+
+      - name: Publish release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.version.outputs.release_tag }}
+          name: ${{ steps.version.outputs.release_tag }}
+          body: 自动更新
+          artifacts: dist/ehentai.bundle.cjs,dist/ehentai.bundle.cjs.br
+          token: ${{ secrets.GITHUB_TOKEN }}
+          allowUpdates: true
+          replacesArtifacts: true
