@@ -28,7 +28,7 @@ if (replaced === constantsSource) {
 
 fs.writeFileSync(constantsPath, replaced, "utf8");
 
-const releaseTag = `v${manifestVersion}`;
+const releaseTag = `v${pluginVersion}`;
 const outputFile = process.env.GITHUB_OUTPUT;
 
 if (outputFile) {
