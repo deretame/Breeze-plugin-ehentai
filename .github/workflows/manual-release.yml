@@ -35,23 +35,23 @@ jobs:
         id: version
         run: node build/prepare-release.js
 
-      - name: Commit version update
-        run: |
-          if git diff --quiet -- src/domain/constants.ts; then
-            echo "No version change to commit."
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add src/domain/constants.ts
-          git commit -m "chore: bump plugin version to ${{ steps.version.outputs.plugin_version }}"
-          git push origin HEAD:${{ github.ref_name }}
-
       - name: Install dependencies
         run: pnpm i
 
       - name: Build
         run: pnpm run build
+
+      - name: Commit version update
+        run: |
+          if git diff --quiet -- manifest.json src/domain/constants.ts; then
+            echo "No version change to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add manifest.json src/domain/constants.ts
+          git commit -m "chore: bump plugin version to ${{ steps.version.outputs.plugin_version }}"
+          git push origin HEAD:${{ github.ref_name }}
 
       - name: Ensure release assets exist
         run: |
