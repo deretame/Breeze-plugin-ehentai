@@ -3,6 +3,7 @@ import type { PluginSettings, SearchComicPayload } from "../domain/types";
 import { mapSearchResult } from "../mappers/comic.mapper";
 import { httpClient } from "../network/client";
 import { buildSearchEndpoint, buildSearchNavigationEndpoint } from "../network/endpoints";
+import { buildRequestConfig } from "./settings.service";
 import { parseSearchPage } from "../parsers/search.parser";
 import { asRecord, normalizeKeyword, normalizePage } from "../utils/guards";
 
@@ -20,7 +21,10 @@ export async function searchComicService(
       ? buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)
       : buildSearchEndpoint(keyword, page, settings.site);
 
-  const html = await httpClient.getText(endpoint);
+  const requestConfig = buildRequestConfig(settings);
+  const html = requestConfig
+    ? await httpClient.getText(endpoint, requestConfig)
+    : await httpClient.getText(endpoint);
   const parsed = parseSearchPage(html);
 
   return mapSearchResult({ ...payload, page, extern }, parsed);

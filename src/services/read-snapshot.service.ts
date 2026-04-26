@@ -9,6 +9,13 @@ import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.pars
 import { requiredString } from "../utils/guards";
 import { buildDeferredImageUrl } from "../utils/deferred-image";
 import { ensureAllowedHostUrl } from "../utils/url";
+import { buildRequestConfig } from "./settings.service";
+
+type RequestConfig = { headers: Record<string, string> } | undefined;
+
+async function getText(url: string, requestConfig?: RequestConfig): Promise<string> {
+  return requestConfig ? httpClient.getText(url, requestConfig) : httpClient.getText(url);
+}
 
 function readChapterOrder(extern: Record<string, unknown>): number {
   const rawOrder = Number(extern.order ?? 1);
@@ -49,9 +56,10 @@ export async function getReadSnapshotService(
   const chapterId = String(payload.chapterId ?? comicId);
   const extern = payload.extern ?? {};
   const chapterOrder = readChapterOrder(extern);
+  const requestConfig = buildRequestConfig(settings);
 
   const firstDetailUrl = buildDetailEndpoint(comicId, settings.site, 0);
-  const firstHtml = await httpClient.getText(firstDetailUrl);
+  const firstHtml = await getText(firstDetailUrl, requestConfig);
   let title = comicId;
   try {
     const detail = parseDetailPage(firstHtml, comicId);
@@ -74,7 +82,7 @@ export async function getReadSnapshotService(
       remainingThumbPages,
       async (thumbPage) => {
         const detailUrl = buildDetailEndpoint(comicId, settings.site, thumbPage - 1);
-        const html = await httpClient.getText(detailUrl);
+        const html = await getText(detailUrl, requestConfig);
         return parseThumbnailRangePage(html);
       },
       MAX_CONCURRENT_REQUESTS,

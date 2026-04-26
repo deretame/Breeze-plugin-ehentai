@@ -5,6 +5,7 @@ import { httpClient } from "../network/client";
 import { buildDetailEndpoint } from "../network/endpoints";
 import { parseDetailPage } from "../parsers/detail.parser";
 import { requiredString } from "../utils/guards";
+import { buildRequestConfig } from "./settings.service";
 
 export async function getComicDetailService(
   payload: ComicDetailPayload,
@@ -12,7 +13,11 @@ export async function getComicDetailService(
 ): Promise<ComicDetailContract> {
   const comicId = requiredString(payload.comicId, "comicId");
 
-  const html = await httpClient.getText(buildDetailEndpoint(comicId, settings.site));
+  const endpoint = buildDetailEndpoint(comicId, settings.site);
+  const requestConfig = buildRequestConfig(settings);
+  const html = requestConfig
+    ? await httpClient.getText(endpoint, requestConfig)
+    : await httpClient.getText(endpoint);
   const detail = parseDetailPage(html, comicId);
   return mapComicDetail(comicId, detail);
 }

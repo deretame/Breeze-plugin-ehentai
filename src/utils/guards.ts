@@ -66,5 +66,7 @@ export function validateSettingsInput(input: Record<string, unknown>): PluginSet
       ? input.imageProxyEnabled
       : String(input.imageProxyEnabled ?? "false").toLowerCase() === "true";
 
-  return { site, imageProxyEnabled };
+  const forumCookie = String(input.forumCookie ?? "").trim();
+
+  return { site, imageProxyEnabled, forumCookie };
 }

@@ -85,14 +85,17 @@ export const httpClient = {
     });
   },
 
-  async getBytes(url: string, timeoutMs?: number): Promise<Uint8Array> {
+  async getBytes(url: string, timeoutMs?: number, config?: AxiosRequestConfig): Promise<Uint8Array> {
     return withRetry(async () => {
       const parsed = new URL(url);
       const response = await http.get<ArrayBuffer>(url, {
-        ...buildSafeRequestConfig(),
+        ...buildSafeRequestConfig(config),
         responseType: "arraybuffer",
         timeout: Number.isFinite(timeoutMs) && Number(timeoutMs) > 0 ? Number(timeoutMs) : undefined,
-        headers: { Host: parsed.host },
+        headers: {
+          Host: parsed.host,
+          ...(config?.headers ?? {}),
+        },
       });
 
       const contentType = String(response.headers?.["content-type"] ?? "").toLowerCase();

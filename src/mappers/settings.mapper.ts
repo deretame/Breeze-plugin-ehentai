@@ -11,31 +11,34 @@ export function mapSettingsBundle(
       version: "1.0.0",
       type: "settings",
       sections: [
-        // {
-        //   id: "basic",
-        //   title: "Basic",
-        //   fields: [
-        //     {
-        //       key: "site",
-        //       kind: "choice",
-        //       label: "Site",
-        //       options: [
-        //         { label: "EH", value: "EH" },
-        //         { label: "EX", value: "EX" },
-        //       ],
-        //     },
-        //     {
-        //       key: "imageProxyEnabled",
-        //       kind: "switch",
-        //       label: "Image Proxy Enabled",
-        //     },
-        //   ],
-        // },
+        {
+          id: "basic",
+          title: "基础",
+          fields: [
+            {
+              key: "site",
+              kind: "choice",
+              label: "站点",
+              options: [
+                { label: "表站", value: "EH" },
+                { label: "里站", value: "EX" },
+              ],
+            },
+            // {
+            //   key: "imageProxyEnabled",
+            //   kind: "switch",
+            //   label: "图片代理模式",
+            // },
+          ],
+        },
       ],
     },
     data: {
       canShowUserInfo: false,
-      values,
+      values: {
+        site: values.site,
+        imageProxyEnabled: values.imageProxyEnabled,
+      },
     },
   };
 }

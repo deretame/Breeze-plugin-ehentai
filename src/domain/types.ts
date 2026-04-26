@@ -27,6 +27,7 @@ export type SiteSetting = "EH" | "EX";
 export type PluginSettings = {
   site: SiteSetting;
   imageProxyEnabled: boolean;
+  forumCookie: string;
 };
 
 export type SearchParsedItem = {

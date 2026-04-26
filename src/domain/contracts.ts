@@ -1,5 +1,3 @@
-import type { PluginSettings } from "./types";
-
 export type PluginFunctionItem = {
   id: string;
   title: string;
@@ -188,14 +186,16 @@ export type SettingsBundleContract = {
       title: string;
       fields: Array<{
         key: string;
-        kind: "choice" | "switch";
+        kind: "text" | "password" | "switch" | "select" | "choice" | "multiChoice";
         label: string;
-        options?: Array<{ label: string; value: string }>;
+        options?: Array<{ label: string; value: unknown }>;
+        fnPath?: string;
+        persist?: boolean;
       }>;
     }>;
   };
   data: {
     canShowUserInfo: false;
-    values: PluginSettings;
+    values: Record<string, unknown>;
   };
 };

@@ -15,6 +15,12 @@ export const PLUGIN_CREATOR = {
 export const EH_BASE_URL = "https://e-hentai.org";
 export const EX_BASE_URL = "https://exhentai.org";
 export const DEFERRED_IMAGE_PATH = "/_breeze/read-image";
+export const EH_FORUM_LOGIN_URL =
+  "https://forums.e-hentai.org/index.php?act=Login";
+export const EH_FORUM_LOGIN_REDIRECT_URL =
+  "https://forums.e-hentai.org/index.php?";
+export const EH_COOKIE_POLL_INTERVAL_MS = 500000;
+export const EH_FORUM_COOKIE_CONFIG_KEY = "forumCookie";
 
 export const DEFAULT_TIMEOUT_MS = 12_000;
 export const MAX_RETRY_ATTEMPTS = 2;
@@ -37,6 +43,7 @@ export const ALLOWED_MEDIA_HOSTS = new Set([
 export const DEFAULT_SETTINGS = {
   site: "EH",
   imageProxyEnabled: false,
+  forumCookie: "",
 } as const;
 
 export const FALLBACK_UNKNOWN = "Unknown";
