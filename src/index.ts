@@ -1,3 +1,9 @@
+import {
+  EH_COOKIE_POLL_INTERVAL_MS,
+  EH_FORUM_LOGIN_REDIRECT_URL,
+  EH_FORUM_LOGIN_URL,
+  PLUGIN_SOURCE,
+} from "./domain/constants";
 import type {
   ChapterContentContract,
   ComicDetailContract,
@@ -14,12 +20,6 @@ import type {
   FetchImageBytesPayload,
   SearchComicPayload,
 } from "./domain/types";
-import {
-  EH_COOKIE_POLL_INTERVAL_MS,
-  EH_FORUM_LOGIN_REDIRECT_URL,
-  EH_FORUM_LOGIN_URL,
-  PLUGIN_SOURCE,
-} from "./domain/constants";
 import { normalizeError } from "./errors/normalize-error";
 import {
   getChapterService,
@@ -33,6 +33,8 @@ import { searchComicService } from "./services/search.service";
 import {
   getSettingsBundleService,
   readSettings,
+  removeCookieNames,
+  resetExAccessProbeCache,
   sanitizeForumCookie,
   saveForumCookie,
 } from "./services/settings.service";
@@ -150,6 +152,7 @@ export async function fetchImageBytes(
   payload: FetchImageBytesPayload = {},
 ): Promise<FetchImageBytesContract> {
   try {
+    console.log("fetchImageBytes payload extern", payload.extern);
     const settings = await readSettings(payload.extern);
     return await fetchImageBytesService(payload, settings);
   } catch (error) {
@@ -211,13 +214,14 @@ export async function setEhentaiForumCookie(
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
   const rawCookie = extractCookieFromPayload(payloadMap);
+  const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["igneous"]);
   const incomingCookieNames = extractCookieNames(String(rawCookie ?? ""));
   console.log(
     "[EH] setEhentaiForumCookie incoming",
     incomingCookieNames.length,
     incomingCookieNames,
   );
-  const sanitizedCookie = await saveForumCookie(rawCookie);
+  const sanitizedCookie = await saveForumCookie(sanitizedIncomingCookie);
   const cookieCount = countCookiePairs(sanitizedCookie);
   const persistedCookieNames = extractCookieNames(sanitizedCookie);
   console.log(
@@ -229,6 +233,8 @@ export async function setEhentaiForumCookie(
   if (!sanitizedCookie || cookieCount <= 0) {
     throw new Error("未检测到可用 cookie（已过滤 cf_clearance）");
   }
+
+  resetExAccessProbeCache();
 
   return {
     source: PLUGIN_SOURCE,

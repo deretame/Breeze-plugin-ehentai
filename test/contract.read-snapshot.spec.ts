@@ -28,6 +28,46 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function installInMemoryBridgeCache(): () => void {
+  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const previousBridge = host.bridge;
+  const cacheStore = new Map<string, unknown>();
+
+  host.bridge = {
+    call: async (name: string, ...args: unknown[]): Promise<unknown> => {
+      if (name === "cache.get") {
+        const key = String(args[0] ?? "");
+        const fallback = args[1];
+        return cacheStore.has(key) ? cacheStore.get(key) : fallback;
+      }
+      if (name === "cache.set") {
+        const key = String(args[0] ?? "");
+        cacheStore.set(key, args[1]);
+        return true;
+      }
+      if (name === "cache.delete") {
+        const key = String(args[0] ?? "");
+        return cacheStore.delete(key);
+      }
+      if (name === "load_plugin_config") {
+        return args[1] ?? "";
+      }
+      if (name === "save_plugin_config") {
+        return String(args[1] ?? "");
+      }
+      throw new Error(`unexpected bridge call: ${name}`);
+    },
+  };
+
+  return () => {
+    if (previousBridge === undefined) {
+      delete host.bridge;
+      return;
+    }
+    host.bridge = previousBridge;
+  };
+}
+
 describe("read snapshot contract", () => {
   test("test_getReadSnapshot_returns_comic_chapter_and_deferred_page_urls", async () => {
     const getTextSpy = vi.spyOn(httpClient, "getText");
@@ -59,6 +99,23 @@ describe("read snapshot contract", () => {
         extern: {},
       },
     ]);
+  });
+
+  test("test_getReadSnapshot_second_request_hits_cache_and_skips_network", async () => {
+    const restoreBridge = installInMemoryBridgeCache();
+    try {
+      const getTextSpy = vi.spyOn(httpClient, "getText");
+      getTextSpy.mockResolvedValueOnce(firstSnapshotPageFixture());
+
+      const first = await getReadSnapshot({ comicId: "123456/abcdef", chapterId: "123456/abcdef" });
+      const second = await getReadSnapshot({ comicId: "123456/abcdef", chapterId: "123456/abcdef" });
+
+      expect(first.data.chapter.pages).toHaveLength(3);
+      expect(second.data.chapter.pages).toHaveLength(3);
+      expect(getTextSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      restoreBridge();
+    }
   });
 });
 

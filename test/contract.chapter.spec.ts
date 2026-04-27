@@ -12,6 +12,90 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+function installInMemoryBridgeCache(): () => void {
+  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const previousBridge = host.bridge;
+  const cacheStore = new Map<string, unknown>();
+
+  host.bridge = {
+    call: async (name: string, ...args: unknown[]): Promise<unknown> => {
+      if (name === "cache.get") {
+        const key = String(args[0] ?? "");
+        const fallback = args[1];
+        return cacheStore.has(key) ? cacheStore.get(key) : fallback;
+      }
+      if (name === "cache.set") {
+        const key = String(args[0] ?? "");
+        cacheStore.set(key, args[1]);
+        return true;
+      }
+      if (name === "cache.delete") {
+        const key = String(args[0] ?? "");
+        return cacheStore.delete(key);
+      }
+      if (name === "load_plugin_config") {
+        return args[1] ?? "";
+      }
+      if (name === "save_plugin_config") {
+        return String(args[1] ?? "");
+      }
+      throw new Error(`unexpected bridge call: ${name}`);
+    },
+  };
+
+  return () => {
+    if (previousBridge === undefined) {
+      delete host.bridge;
+      return;
+    }
+    host.bridge = previousBridge;
+  };
+}
+
+function installWrappedInMemoryBridgeCache(): () => void {
+  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const previousBridge = host.bridge;
+  const cacheStore = new Map<string, unknown>();
+
+  host.bridge = {
+    call: async (name: string, ...args: unknown[]): Promise<unknown> => {
+      if (name === "cache.get") {
+        const key = String(args[0] ?? "");
+        const fallback = args[1];
+        return {
+          ok: true,
+          value: cacheStore.has(key) ? cacheStore.get(key) : fallback,
+        };
+      }
+      if (name === "cache.set") {
+        const key = String(args[0] ?? "");
+        cacheStore.set(key, args[1]);
+        return true;
+      }
+      if (name === "cache.delete") {
+        const key = String(args[0] ?? "");
+        cacheStore.delete(key);
+        return true;
+      }
+      if (name === "load_plugin_config") {
+        return args[1] ?? "";
+      }
+      if (name === "save_plugin_config") {
+        return String(args[1] ?? "");
+      }
+      throw new Error(`unexpected bridge call: ${name}`);
+    },
+  };
+
+  return () => {
+    if (previousBridge === undefined) {
+      delete host.bridge;
+      return;
+    }
+    host.bridge = previousBridge;
+  };
+}
+
 function thumbnailFixtureWithHrefs(hrefs: string[]): string {
   const anchors = hrefs
     .map((href, index) => `<a href="${href}"><div data-orghash="abcdefghij${index}"></div></a>`)
@@ -111,6 +195,44 @@ describe("chapter contract", () => {
     expect(result.scheme.type).toBe("readPages");
     expect(result.data.items).toHaveLength(3);
     expect(result.data.items[0].extern.reloadKey).toBe("WZG-474997");
+  });
+
+  test("test_getChapter_second_request_hits_cache_and_skips_network", async () => {
+    const restoreBridge = installInMemoryBridgeCache();
+    try {
+      const getTextSpy = vi.spyOn(httpClient, "getText");
+      getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+
+      const first = await getChapter({ comicId: "123456/abcdef", page: 1 });
+      const second = await getChapter({ comicId: "123456/abcdef", page: 1 });
+
+      expect(first.data.chapter.docs).toHaveLength(3);
+      expect(second.data.chapter.docs).toHaveLength(3);
+      expect(getTextSpy).toHaveBeenCalledTimes(4);
+    } finally {
+      restoreBridge();
+    }
+  });
+
+  test("test_getChapter_wrapped_cache_get_value_still_hits_cache", async () => {
+    const restoreBridge = installWrappedInMemoryBridgeCache();
+    try {
+      const getTextSpy = vi.spyOn(httpClient, "getText");
+      getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
+
+      await getChapter({ comicId: "123456/abcdef", page: 1 });
+      await getChapter({ comicId: "123456/abcdef", page: 1 });
+
+      expect(getTextSpy).toHaveBeenCalledTimes(4);
+    } finally {
+      restoreBridge();
+    }
   });
 
   test("test_getChapter_missing_comicId_returns_validation_error", async () => {

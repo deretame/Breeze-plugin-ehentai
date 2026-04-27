@@ -1,14 +1,23 @@
 import {
   DEFAULT_SETTINGS,
   EH_FORUM_COOKIE_CONFIG_KEY,
+  EX_BASE_URL,
 } from "../domain/constants";
 import type { SettingsBundleContract } from "../domain/contracts";
-import type { PluginSettings } from "../domain/types";
+import type { PluginSettings, SiteSetting } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
+import { httpClient, type HttpTextResponseMeta } from "../network/client";
 import { pluginConfig } from "../tools";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
+const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set([
+  "exhentai.org",
+  "forums.e-hentai.org",
+]);
+const EX_AUTH_REDIRECT_MAX_STEPS = 6;
+
+let exAccessDeniedCached = false;
 
 function decodeConfigString(raw: unknown, fallback = ""): string {
   if (raw === undefined || raw === null) {
@@ -68,6 +77,186 @@ function splitCookiePair(
     return null;
   }
   return { name, value };
+}
+
+export function removeCookieNames(
+  rawCookie: unknown,
+  cookieNames: string[],
+): string {
+  const normalized = sanitizeForumCookie(rawCookie);
+  if (!normalized) {
+    return "";
+  }
+
+  const denyList = new Set(
+    (Array.isArray(cookieNames) ? cookieNames : [])
+      .map((item) =>
+        String(item ?? "")
+          .trim()
+          .toLowerCase(),
+      )
+      .filter(Boolean),
+  );
+  if (!denyList.size) {
+    return normalized;
+  }
+
+  return normalized
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .map((token) => splitCookiePair(token))
+    .filter((pair): pair is { name: string; value: string } => Boolean(pair))
+    .filter((pair) => !denyList.has(pair.name.toLowerCase()))
+    .map((pair) => `${pair.name}=${pair.value}`)
+    .join("; ");
+}
+
+function findCookieValue(rawCookie: string, name: string): string {
+  const normalized = sanitizeForumCookie(rawCookie);
+  if (!normalized) {
+    return "";
+  }
+  const target = name.toLowerCase();
+  const tokens = normalized
+    .split(";")
+    .map((item) => item.trim())
+    .filter(Boolean);
+  for (const token of tokens) {
+    const pair = splitCookiePair(token);
+    if (!pair) {
+      continue;
+    }
+    if (pair.name.toLowerCase() === target) {
+      return pair.value;
+    }
+  }
+  return "";
+}
+
+function readHeaderValue(
+  headers: HttpTextResponseMeta["headers"],
+  name: string,
+): string {
+  const raw = headers[name.toLowerCase()];
+  if (Array.isArray(raw)) {
+    return String(raw[0] ?? "").trim();
+  }
+  return String(raw ?? "").trim();
+}
+
+function readSetCookiePairs(
+  headers: HttpTextResponseMeta["headers"],
+): string[] {
+  const raw = headers["set-cookie"];
+  const setCookieEntries = Array.isArray(raw)
+    ? raw
+    : typeof raw === "string"
+      ? [raw]
+      : [];
+  const pairs: string[] = [];
+  for (const entry of setCookieEntries) {
+    const firstToken =
+      String(entry ?? "")
+        .split(";")[0]
+        ?.trim() ?? "";
+    const pair = splitCookiePair(firstToken);
+    if (!pair) {
+      continue;
+    }
+    pairs.push(`${pair.name}=${pair.value}`);
+  }
+  return pairs;
+}
+
+function mergeCookiePairs(baseCookie: string, pairs: string[]): string {
+  if (!pairs.length) {
+    return sanitizeForumCookie(baseCookie);
+  }
+  return sanitizeForumCookie([baseCookie, ...pairs].join("; "));
+}
+
+function resolveRedirectUrl(location: string, currentUrl: string): string {
+  const rawLocation = String(location ?? "").trim();
+  if (!rawLocation) {
+    return "";
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawLocation, currentUrl);
+  } catch {
+    return "";
+  }
+  if (parsed.protocol !== "https:") {
+    return "";
+  }
+  if (!EX_AUTH_REDIRECT_ALLOWED_HOSTS.has(parsed.hostname)) {
+    return "";
+  }
+  return parsed.toString();
+}
+
+async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
+  let currentCookie = sanitizeForumCookie(rawCookie);
+  if (!currentCookie) {
+    return currentCookie;
+  }
+
+  let currentUrl = EX_BASE_URL;
+  for (let step = 0; step < EX_AUTH_REDIRECT_MAX_STEPS; step += 1) {
+    const response = await httpClient.getTextWithMeta(currentUrl, {
+      headers: { Cookie: currentCookie },
+    });
+
+    const setCookiePairs = readSetCookiePairs(response.headers);
+    currentCookie = mergeCookiePairs(currentCookie, setCookiePairs);
+
+    if (findCookieValue(currentCookie, "igneous")) {
+      return await saveForumCookie(currentCookie);
+    }
+
+    if (step === 0 && response.status === 200 && !response.data.trim()) {
+      exAccessDeniedCached = true;
+      return sanitizeForumCookie(rawCookie);
+    }
+
+    if (response.status !== 302) {
+      return currentCookie;
+    }
+
+    const nextUrl = resolveRedirectUrl(
+      readHeaderValue(response.headers, "location"),
+      currentUrl,
+    );
+    if (!nextUrl) {
+      return currentCookie;
+    }
+    currentUrl = nextUrl;
+  }
+
+  return currentCookie;
+}
+
+async function maybeRefreshExhentaiCookie(
+  site: SiteSetting,
+  forumCookie: string,
+): Promise<string> {
+  const normalizedCookie = sanitizeForumCookie(forumCookie);
+  if (site !== "EX" || !normalizedCookie) {
+    return normalizedCookie;
+  }
+  if (findCookieValue(normalizedCookie, "igneous")) {
+    return normalizedCookie;
+  }
+  if (exAccessDeniedCached) {
+    return normalizedCookie;
+  }
+  try {
+    return await tryResolveExhentaiIgneous(normalizedCookie);
+  } catch (error) {
+    console.warn("[EH] EX igneous refresh failed", error);
+    return normalizedCookie;
+  }
 }
 
 export function sanitizeForumCookie(rawCookie: unknown): string {
@@ -147,6 +336,10 @@ export async function saveForumCookie(rawCookie: unknown): Promise<string> {
   return cookie;
 }
 
+export function resetExAccessProbeCache(): void {
+  exAccessDeniedCached = false;
+}
+
 function readExternString(
   extern: Record<string, unknown>,
   key: string,
@@ -160,7 +353,6 @@ function readExternString(
 export async function readSettings(
   extern?: Record<string, unknown>,
 ): Promise<PluginSettings> {
-  console.log("readSettings extern", extern);
   const externMap = asRecord(extern);
   const [storedSite, storedImageProxyEnabled, storedForumCookie] =
     await Promise.all([
@@ -188,9 +380,13 @@ export async function readSettings(
   };
 
   const settings = validateSettingsInput(merged);
+  const forumCookie = await maybeRefreshExhentaiCookie(
+    settings.site,
+    settings.forumCookie,
+  );
   return {
     ...settings,
-    forumCookie: sanitizeForumCookie(settings.forumCookie),
+    forumCookie: sanitizeForumCookie(forumCookie),
   };
 }
 

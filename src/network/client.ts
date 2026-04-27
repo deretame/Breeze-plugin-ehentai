@@ -3,6 +3,13 @@ import { DEFAULT_TIMEOUT_MS, MAX_CONCURRENT_REQUESTS, MAX_RETRY_ATTEMPTS } from 
 import { networkError } from "../errors/plugin-error";
 
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+type TextResponseHeaders = Record<string, string | string[] | undefined>;
+
+export type HttpTextResponseMeta = {
+  status: number;
+  data: string;
+  headers: TextResponseHeaders;
+};
 
 const http = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
@@ -72,6 +79,36 @@ export const httpClient = {
       });
       ensureContentType(response.headers?.["content-type"], ["text/html", "application/xhtml+xml"], "HTML request");
       return String(response.data ?? "");
+    });
+  },
+
+  async getTextWithMeta(
+    url: string,
+    config?: AxiosRequestConfig,
+  ): Promise<HttpTextResponseMeta> {
+    return withRetry(async () => {
+      const response = await http.get<string>(url, {
+        ...buildSafeRequestConfig(config),
+        responseType: "text",
+        validateStatus: () => true,
+      });
+      const rawHeaders = response.headers as Record<string, unknown>;
+      const headers: TextResponseHeaders = {};
+      for (const [key, value] of Object.entries(rawHeaders)) {
+        if (Array.isArray(value)) {
+          headers[key.toLowerCase()] = value.map((item) => String(item));
+          continue;
+        }
+        if (value === undefined || value === null) {
+          continue;
+        }
+        headers[key.toLowerCase()] = String(value);
+      }
+      return {
+        status: Number(response.status ?? 0),
+        data: String(response.data ?? ""),
+        headers,
+      };
     });
   },
 

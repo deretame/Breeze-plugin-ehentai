@@ -13,9 +13,7 @@ import {
 import { parseDeferredImageUrl } from "../utils/deferred-image";
 import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl, ensureAllowedMediaUrl } from "../utils/url";
-import { buildRequestConfig } from "./settings.service";
-
-type RequestConfig = { headers: Record<string, string> } | undefined;
+import { buildNonSearchSiteAttempts, remapGalleryHostForSite, type RequestConfig } from "./site-routing.service";
 
 function normalizeNativeBufferId(value: unknown): number {
   const nativeBufferId = Number(value);
@@ -31,7 +29,10 @@ async function resolveImageUrlFromImagePage(
 ): Promise<string> {
   const safeImagePageHref = ensureAllowedHostUrl(imagePageHref);
   const imagePageHtml = requestConfig
-    ? await httpClient.getText(buildImagePageEndpoint(safeImagePageHref), requestConfig)
+    ? await httpClient.getText(
+        buildImagePageEndpoint(safeImagePageHref),
+        requestConfig,
+      )
     : await httpClient.getText(buildImagePageEndpoint(safeImagePageHref));
 
   try {
@@ -48,8 +49,13 @@ async function resolveImageUrlFromImagePage(
     }
 
     const retriedHtml = requestConfig
-      ? await httpClient.getText(buildImagePageEndpoint(safeImagePageHref, reloadKey), requestConfig)
-      : await httpClient.getText(buildImagePageEndpoint(safeImagePageHref, reloadKey));
+      ? await httpClient.getText(
+          buildImagePageEndpoint(safeImagePageHref, reloadKey),
+          requestConfig,
+        )
+      : await httpClient.getText(
+          buildImagePageEndpoint(safeImagePageHref, reloadKey),
+        );
     const retried = parseImagePage(safeImagePageHref, retriedHtml);
     return ensureAllowedMediaUrl(retried.imageUrl);
   }
@@ -88,7 +94,7 @@ export async function fetchImageBytesService(
 ): Promise<FetchImageBytesContract> {
   const rawUrl = requiredString(payload.url, "url");
   const deferredImagePageHref = readDeferredImagePageHref(payload, rawUrl);
-  const requestConfig = buildRequestConfig(settings);
+  const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
 
   if (!deferredImagePageHref && isDeferredPlaceholderUrl(rawUrl)) {
     throw contractError("missing deferred image page href", {
@@ -97,15 +103,29 @@ export async function fetchImageBytesService(
     });
   }
 
-  const imageUrl = deferredImagePageHref
-    ? await resolveImageUrlFromImagePage(deferredImagePageHref, requestConfig)
-    : ensureAllowedMediaUrl(rawUrl);
+  let lastError: unknown;
+  for (const attempt of attempts) {
+    try {
+      const imagePageHref = deferredImagePageHref
+        ? remapGalleryHostForSite(deferredImagePageHref, attempt.site)
+        : undefined;
+      const mediaUrl = remapGalleryHostForSite(rawUrl, attempt.site);
 
-  const imageBytes = requestConfig
-    ? await httpClient.getBytes(imageUrl, payload.timeoutMs, requestConfig)
-    : await httpClient.getBytes(imageUrl, payload.timeoutMs);
-  const nativeBufferId = await runtime.native.put(imageBytes);
-  return {
-    nativeBufferId: normalizeNativeBufferId(nativeBufferId),
-  };
+      const imageUrl = imagePageHref
+        ? await resolveImageUrlFromImagePage(imagePageHref, attempt.requestConfig)
+        : ensureAllowedMediaUrl(mediaUrl);
+
+      const imageBytes = attempt.requestConfig
+        ? await httpClient.getBytes(imageUrl, payload.timeoutMs, attempt.requestConfig)
+        : await httpClient.getBytes(imageUrl, payload.timeoutMs);
+      const nativeBufferId = await runtime.native.put(imageBytes);
+      return {
+        nativeBufferId: normalizeNativeBufferId(nativeBufferId),
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError ?? contractError("failed to fetch image bytes");
 }
