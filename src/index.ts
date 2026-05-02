@@ -214,7 +214,10 @@ export async function setEhentaiForumCookie(
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
   const rawCookie = extractCookieFromPayload(payloadMap);
-  const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["igneous"]);
+  const sanitizedIncomingCookie = removeCookieNames(rawCookie, [
+    "igneous",
+    "cf_clearance",
+  ]);
   const incomingCookieNames = extractCookieNames(String(rawCookie ?? ""));
   console.log(
     "[EH] setEhentaiForumCookie incoming",
@@ -251,6 +254,41 @@ export async function setEhentaiForumCookie(
   };
 }
 
+export async function setEhentaiManualCookie(
+  payload: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  const payloadMap = asRecord(payload);
+  const rawCookie = extractCookieFromPayload(payloadMap);
+  const sanitizedIncomingCookie = removeCookieNames(rawCookie, [
+    "cf_clearance",
+  ]);
+  const sanitizedCookie = await saveForumCookie(sanitizedIncomingCookie);
+  const cookieCount = countCookiePairs(sanitizedCookie);
+  const persistedCookieNames = extractCookieNames(sanitizedCookie);
+  console.log(
+    "[EH] setEhentaiManualCookie persisted",
+    persistedCookieNames.length,
+    persistedCookieNames,
+  );
+
+  resetExAccessProbeCache();
+
+  return {
+    source: PLUGIN_SOURCE,
+    data: {
+      ok: true,
+      cookie: sanitizedCookie,
+      cookieCount,
+      valuesPatch: {
+        forumCookie: sanitizedCookie,
+      },
+      message: cookieCount
+        ? `已保存 ${cookieCount} 条 cookie`
+        : "cookie 已清空",
+    },
+  };
+}
+
 export default {
   getInfo,
   searchComic,
@@ -263,4 +301,5 @@ export default {
   getCapabilitiesBundle,
   startEhentaiWebLogin,
   setEhentaiForumCookie,
+  setEhentaiManualCookie,
 };

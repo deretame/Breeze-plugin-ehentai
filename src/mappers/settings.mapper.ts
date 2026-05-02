@@ -29,6 +29,12 @@ export function mapSettingsBundle(
             //   kind: "switch",
             //   label: "图片代理模式",
             // },
+            {
+              key: "forumCookie",
+              kind: "text",
+              label: "Cookie（请复制完整的cookie）",
+              fnPath: "setEhentaiManualCookie",
+            },
           ],
         },
       ],
@@ -38,6 +44,7 @@ export function mapSettingsBundle(
       values: {
         site: values.site,
         imageProxyEnabled: values.imageProxyEnabled,
+        forumCookie: values.forumCookie,
       },
     },
   };
