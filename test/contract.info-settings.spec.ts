@@ -9,14 +9,18 @@ describe("info and settings contract", () => {
       name: "e-hentai",
       uuid: PLUGIN_UUID,
     });
-    expect(info.function).toEqual([]);
+    expect(info.function.map((item) => item.id)).toEqual([
+      "latest",
+      "popular",
+      "ranking",
+    ]);
   });
 
   test("test_getSettingsBundle_returns_valid_bundle", async () => {
     const canonical = await getSettingsBundle();
 
     expect(canonical.scheme.type).toBe("settings");
-    expect(canonical.data.values).toEqual({
+    expect(canonical.data.values).toMatchObject({
       site: "EH",
       imageProxyEnabled: false,
     });

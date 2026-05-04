@@ -7,7 +7,7 @@ import type { SettingsBundleContract } from "../domain/contracts";
 import type { PluginSettings, SiteSetting } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
-import { pluginConfig } from "../tools";
+import { flutterTools, pluginConfig } from "../tools";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
@@ -16,8 +16,10 @@ const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set([
   "forums.e-hentai.org",
 ]);
 const EX_AUTH_REDIRECT_MAX_STEPS = 6;
+const IGNEOUS_PLACEHOLDER_VALUES = new Set(["mystery"]);
 
 let exAccessDeniedCached = false;
+let exFallbackNotified = false;
 
 function decodeConfigString(raw: unknown, fallback = ""): string {
   if (raw === undefined || raw === null) {
@@ -134,6 +136,17 @@ function findCookieValue(rawCookie: string, name: string): string {
   return "";
 }
 
+function hasUsableIgneous(rawCookie: string): boolean {
+  const value = findCookieValue(rawCookie, "igneous").trim().toLowerCase();
+  if (!value) {
+    return false;
+  }
+  if (IGNEOUS_PLACEHOLDER_VALUES.has(value)) {
+    return false;
+  }
+  return true;
+}
+
 function readHeaderValue(
   headers: HttpTextResponseMeta["headers"],
   name: string,
@@ -211,13 +224,13 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
     const setCookiePairs = readSetCookiePairs(response.headers);
     currentCookie = mergeCookiePairs(currentCookie, setCookiePairs);
 
-    if (findCookieValue(currentCookie, "igneous")) {
-      return await saveForumCookie(currentCookie);
-    }
-
     if (step === 0 && response.status === 200 && !response.data.trim()) {
       exAccessDeniedCached = true;
-      return sanitizeForumCookie(rawCookie);
+      return removeCookieNames(currentCookie, ["igneous"]);
+    }
+
+    if (hasUsableIgneous(currentCookie)) {
+      return await saveForumCookie(currentCookie);
     }
 
     if (response.status !== 302) {
@@ -241,15 +254,16 @@ async function maybeRefreshExhentaiCookie(
   site: SiteSetting,
   forumCookie: string,
 ): Promise<string> {
-  const normalizedCookie = sanitizeForumCookie(forumCookie);
+  let normalizedCookie = sanitizeForumCookie(forumCookie);
   if (site !== "EX" || !normalizedCookie) {
     return normalizedCookie;
   }
-  if (findCookieValue(normalizedCookie, "igneous")) {
+
+  if (hasUsableIgneous(normalizedCookie)) {
     return normalizedCookie;
   }
   if (exAccessDeniedCached) {
-    return normalizedCookie;
+    return removeCookieNames(normalizedCookie, ["igneous"]);
   }
   try {
     return await tryResolveExhentaiIgneous(normalizedCookie);
@@ -257,6 +271,37 @@ async function maybeRefreshExhentaiCookie(
     console.warn("[EH] EX igneous refresh failed", error);
     return normalizedCookie;
   }
+}
+
+async function fallbackToEhIfExAccessDenied(
+  settings: PluginSettings,
+): Promise<PluginSettings> {
+  if (settings.site !== "EX" || !exAccessDeniedCached) {
+    return settings;
+  }
+
+  try {
+    await pluginConfig.save("site", "EH");
+  } catch {
+    // ignore persist failure and still fallback for current request
+  }
+
+  if (!exFallbackNotified) {
+    exFallbackNotified = true;
+    try {
+      await flutterTools.showToast({
+        message: "ehentai 无里站权限，已回退",
+        level: "warning",
+      });
+    } catch {
+      // ignore toast failure
+    }
+  }
+
+  return {
+    ...settings,
+    site: "EH",
+  };
 }
 
 export function sanitizeForumCookie(rawCookie: unknown): string {
@@ -338,6 +383,7 @@ export async function saveForumCookie(rawCookie: unknown): Promise<string> {
 
 export function resetExAccessProbeCache(): void {
   exAccessDeniedCached = false;
+  exFallbackNotified = false;
 }
 
 function readExternString(
@@ -352,6 +398,7 @@ function readExternString(
 
 export async function readSettings(
   extern?: Record<string, unknown>,
+  options?: { skipExProbe?: boolean },
 ): Promise<PluginSettings> {
   const externMap = asRecord(extern);
   const [storedSite, storedImageProxyEnabled, storedForumCookie] =
@@ -379,11 +426,17 @@ export async function readSettings(
       storedForumCookie,
   };
 
-  const settings = validateSettingsInput(merged);
-  const forumCookie = await maybeRefreshExhentaiCookie(
-    settings.site,
-    settings.forumCookie,
-  );
+  let settings = validateSettingsInput(merged);
+  let forumCookie = settings.forumCookie;
+
+  if (!options?.skipExProbe) {
+    forumCookie = await maybeRefreshExhentaiCookie(
+      settings.site,
+      settings.forumCookie,
+    );
+    settings = await fallbackToEhIfExAccessDenied(settings);
+  }
+
   return {
     ...settings,
     forumCookie: sanitizeForumCookie(forumCookie),
@@ -393,6 +446,6 @@ export async function readSettings(
 export async function getSettingsBundleService(
   extern?: Record<string, unknown>,
 ): Promise<SettingsBundleContract> {
-  const values = await readSettings(extern);
+  const values = await readSettings(extern, { skipExProbe: true });
   return mapSettingsBundle(values);
 }

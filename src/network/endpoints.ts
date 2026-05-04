@@ -7,9 +7,24 @@ function resolveSiteBase(site: SiteSetting): string {
   return site === "EX" ? EX_BASE_URL : EH_BASE_URL;
 }
 
-export function buildSearchEndpoint(keyword: string, page: number, site: SiteSetting): string {
+export function buildSearchEndpoint(
+  keyword: string,
+  page: number,
+  site: SiteSetting,
+  extraQuery?: Record<string, unknown>,
+): string {
   const url = new URL("/", resolveSiteBase(site));
   url.searchParams.set("f_search", keyword);
+  for (const [key, rawValue] of Object.entries(extraQuery ?? {})) {
+    if (rawValue === undefined || rawValue === null) {
+      continue;
+    }
+    const value = String(rawValue).trim();
+    if (!value) {
+      continue;
+    }
+    url.searchParams.set(key, value);
+  }
   if (page > 1) {
     url.searchParams.set("page", String(page - 1));
   }

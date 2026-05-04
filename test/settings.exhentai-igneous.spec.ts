@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { httpClient } from "../src/network/client";
+import { flutterTools, pluginConfig } from "../src/tools";
 import {
   readSettings,
   resetExAccessProbeCache,
@@ -24,6 +25,31 @@ describe("settings exhentai igneous redirect flow", () => {
 
     expect(settings.forumCookie).toContain("igneous=abc123");
     expect(getMetaSpy).not.toHaveBeenCalled();
+  });
+
+  test("test_readSettings_ex_cookie_without_ex_access_removes_igneous", async () => {
+    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue(
+      {
+        status: 200,
+        data: "",
+        headers: {},
+      },
+    );
+    const saveSpy = vi.spyOn(pluginConfig, "save").mockResolvedValue("");
+    const toastSpy = vi.spyOn(flutterTools, "showToast").mockResolvedValue("");
+
+    const settings = await readSettings({
+      site: "EX",
+      forumCookie: "ipb_member_id=1; igneous=mystery; ipb_pass_hash=2",
+    });
+
+    expect(settings.site).toBe("EH");
+    expect(settings.forumCookie).toContain("ipb_member_id=1");
+    expect(settings.forumCookie).toContain("ipb_pass_hash=2");
+    expect(settings.forumCookie).not.toContain("igneous=");
+    expect(getMetaSpy).toHaveBeenCalledTimes(1);
+    expect(saveSpy).toHaveBeenCalledWith("site", "EH");
+    expect(toastSpy).toHaveBeenCalled();
   });
 
   test("test_readSettings_ex_cookie_empty_ex_home_marks_access_denied_cache", async () => {

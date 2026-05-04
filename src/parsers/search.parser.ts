@@ -6,8 +6,19 @@ import { normalizeWhitespace } from "../utils/text";
 
 const DETAIL_ID_REGEX = /\/g\/(\d+\/[a-zA-Z0-9-]+)\/?/;
 const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
-const COVER_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "src"] as const;
-const PLACEHOLDER_MARKERS = ["data:image", "base64,", "blank.gif", "spacer", "/img/blank"];
+const COVER_ATTRIBUTES = [
+  "data-src",
+  "data-lazy-src",
+  "data-original",
+  "src",
+] as const;
+const PLACEHOLDER_MARKERS = [
+  "data:image",
+  "base64,",
+  "blank.gif",
+  "spacer",
+  "/img/blank",
+];
 
 function parsePaging($: cheerio.CheerioAPI): {
   page: number;
@@ -69,7 +80,9 @@ export function parseSearchPage(html: string): SearchParsed {
   const $ = cheerio.load(html);
 
   function normalizeCoverCandidate(input: string): string {
-    const value = String(input ?? "").trim().replace(/^['"]|['"]$/g, "");
+    const value = String(input ?? "")
+      .trim()
+      .replace(/^['"]|['"]$/g, "");
     if (!value) {
       return "";
     }

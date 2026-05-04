@@ -21,3 +21,41 @@ export const pluginConfig = {
   load: (key: string, fallback = "") =>
     bridge.call("load_plugin_config", key, fallback) as Promise<string>,
 };
+
+export const runtime = {
+  gc: () => bridge.call("runtime.gc") as Promise<void>,
+  isTaskGroupCancelled: (taskGroupKey: string) =>
+    bridge.call(
+      "runtime.is_task_group_cancelled",
+      taskGroupKey,
+    ) as Promise<boolean>,
+};
+
+export const opencc = {
+  convert: (
+    text: string,
+    config: "s2t" | "t2s" | "s2tw" | "tw2s" | "s2hk" | "hk2s",
+  ) => {
+    return bridge.call(
+      "opencc.convert",
+      JSON.stringify({ text, config }),
+    ) as Promise<string>;
+  },
+};
+
+interface ToastOptions {
+  message: string;
+  title?: string;
+  seconds?: number;
+  level?: "info" | "success" | "warning" | "error";
+}
+
+export const flutterTools = {
+  getAppVersion: () => bridge.call("dart.getAppVersion") as Promise<string>,
+  showToast: (options: ToastOptions) => {
+    return bridge.call(
+      "flutter.showToast",
+      JSON.stringify(options),
+    ) as Promise<string>;
+  },
+};

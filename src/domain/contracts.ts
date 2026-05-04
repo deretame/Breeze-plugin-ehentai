@@ -3,7 +3,34 @@ export type PluginFunctionItem = {
   title: string;
   action:
     | { type: "openSearch"; payload: { source: string; keyword?: string } }
-    | { type: "openComicDetail"; payload: { comicId: string } };
+    | { type: "openComicDetail"; payload: { comicId: string } }
+    | {
+        type: "openComicList";
+        payload: {
+          scene: {
+            title: string;
+            source: string;
+            list: {
+              fnPath: string;
+              core?: Record<string, unknown>;
+              extern?: Record<string, unknown>;
+            };
+            filter?: {
+              fnPath: string;
+              core?: Record<string, unknown>;
+              extern?: Record<string, unknown>;
+            };
+          };
+        };
+      }
+    | {
+        type: "openPluginFunction";
+        payload: {
+          id: string;
+          title?: string;
+          presentation?: "page";
+        };
+      };
 };
 
 export type InfoContract = {

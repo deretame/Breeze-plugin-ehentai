@@ -10,5 +10,74 @@
   "version": "0.0.9",
   "home": "https://github.com/deretame/Breeze-plugin-ehentai",
   "updateUrl": "https://api.github.com/repos/deretame/Breeze-plugin-ehentai/releases/latest",
-  "function": []
+  "function": [
+    {
+      "id": "latest",
+      "title": "最新",
+      "action": {
+        "type": "openComicList",
+        "payload": {
+          "scene": {
+            "title": "最新",
+            "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
+            "list": {
+              "fnPath": "getLatestData",
+              "core": {},
+              "extern": {
+                "source": "latest"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "popular",
+      "title": "热门",
+      "action": {
+        "type": "openComicList",
+        "payload": {
+          "scene": {
+            "title": "热门",
+            "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
+            "list": {
+              "fnPath": "getPopularData",
+              "core": {},
+              "extern": {
+                "source": "popular"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "ranking",
+      "title": "排行榜",
+      "action": {
+        "type": "openComicList",
+        "payload": {
+          "scene": {
+            "title": "排行榜",
+            "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
+            "list": {
+              "fnPath": "getRankingData",
+              "core": {},
+              "extern": {
+                "source": "ranking",
+                "rankType": "day"
+              }
+            },
+            "filter": {
+              "fnPath": "getRankingFilterBundle",
+              "core": {},
+              "extern": {
+                "source": "ranking"
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }

@@ -31,6 +31,7 @@ import { getInfoService } from "./services/info.service";
 import { getReadSnapshotService } from "./services/read-snapshot.service";
 import { searchComicService } from "./services/search.service";
 import {
+  buildRequestConfig,
   getSettingsBundleService,
   readSettings,
   removeCookieNames,
@@ -38,6 +39,10 @@ import {
   sanitizeForumCookie,
   saveForumCookie,
 } from "./services/settings.service";
+import { buildSearchNavigationEndpoint } from "./network/endpoints";
+import { httpClient } from "./network/client";
+import { parseSearchPage } from "./parsers/search.parser";
+import { mapSearchResult } from "./mappers/comic.mapper";
 import { asRecord } from "./utils/guards";
 
 function extractCookieFromPayload(payload: Record<string, unknown>): string {
@@ -96,9 +101,16 @@ export async function searchComic(
   payload: SearchComicPayload = {},
 ): Promise<SearchResultContract> {
   console.log("searchComic payload", payload);
+  const payloadMap = asRecord(payload as unknown as Record<string, unknown>);
   try {
     const settings = await readSettings(payload.extern);
-    return await searchComicService(payload, settings);
+    return await searchComicService(
+      {
+        ...payloadMap,
+        extern: asRecord(payload.extern),
+      } as SearchComicPayload,
+      settings,
+    );
   } catch (error) {
     throw normalizeError(error);
   }
@@ -164,6 +176,186 @@ export async function getInfo(): Promise<InfoContract> {
   return getInfoService();
 }
 
+function resolveFunctionPageBySource(source: string): string {
+  switch (source) {
+    case "popular":
+      return "/popular";
+    case "ranking":
+      return "/toplist.php?tl=15";
+    case "latest":
+    default:
+      return "/";
+  }
+}
+
+function resolveRankTl(rankType: string): number {
+  switch (rankType) {
+    case "month":
+      return 13;
+    case "year":
+      return 12;
+    case "allTime":
+      return 11;
+    case "day":
+    default:
+      return 15;
+  }
+}
+
+export async function getLatestData(
+  payload: SearchComicPayload = {},
+): Promise<Record<string, unknown>> {
+  return getFunctionPage({
+    ...payload,
+    extern: { ...(payload.extern ?? {}), source: "latest" },
+  });
+}
+
+export async function getPopularData(
+  payload: SearchComicPayload = {},
+): Promise<Record<string, unknown>> {
+  return getFunctionPage({
+    ...payload,
+    extern: { ...(payload.extern ?? {}), source: "popular" },
+  });
+}
+
+export async function getRankingData(
+  payload: SearchComicPayload = {},
+): Promise<Record<string, unknown>> {
+  return getFunctionPage({
+    ...payload,
+    extern: { ...(payload.extern ?? {}), source: "ranking" },
+  });
+}
+
+export async function getFunctionPage(
+  payload: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  try {
+    const extern = asRecord(payload.extern);
+    const source = String(extern.source ?? payload.source ?? "latest")
+      .trim()
+      .toLowerCase();
+    const page = Math.max(1, Number(payload.page ?? extern.page ?? 1) || 1);
+    const nextUrlFromExtern = String(extern.nextUrl ?? "").trim();
+    const keyword = String(payload.keyword ?? extern.keyword ?? "").trim();
+    const rankType = String(
+      extern.rankType ?? payload.rankType ?? "day",
+    ).trim();
+
+    const settings = await readSettings(extern);
+    const requestConfig = buildRequestConfig(settings);
+
+    let endpoint = "";
+    if (page > 1 && nextUrlFromExtern) {
+      endpoint = buildSearchNavigationEndpoint(
+        nextUrlFromExtern,
+        settings.site,
+      );
+    } else if (source === "ranking") {
+      const tl = resolveRankTl(rankType);
+      endpoint = buildSearchNavigationEndpoint(
+        `/toplist.php?tl=${tl}&p=${Math.max(0, page - 1)}`,
+        settings.site,
+      );
+    } else {
+      endpoint = buildSearchNavigationEndpoint(
+        resolveFunctionPageBySource(source),
+        settings.site,
+      );
+      if (keyword) {
+        const url = new URL(endpoint);
+        url.searchParams.set("f_search", keyword);
+        endpoint = buildSearchNavigationEndpoint(url.toString(), settings.site);
+      }
+    }
+
+    const html = requestConfig
+      ? await httpClient.getText(endpoint, requestConfig)
+      : await httpClient.getText(endpoint);
+
+    const parsed = parseSearchPage(html);
+    const mapped = mapSearchResult(
+      { page, extern: { ...extern, source } },
+      parsed,
+    );
+
+    return {
+      source: PLUGIN_SOURCE,
+      extern: mapped.extern,
+      scheme: {
+        version: "1.0.0",
+        type: `${source || "latest"}Feed`,
+        card: "comic",
+      },
+      data: {
+        page,
+        keyword,
+        rankType,
+        total: mapped.data.paging.total,
+        hasReachedMax: mapped.data.paging.hasReachedMax,
+        items: mapped.data.items,
+        raw: {
+          page: mapped.data.paging.page,
+          pages: mapped.data.paging.pages,
+          nextUrl: mapped.extern.nextUrl,
+          prevUrl: mapped.extern.prevUrl,
+        },
+      },
+    };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getRankingFilterBundle(): Promise<
+  Record<string, unknown>
+> {
+  return {
+    source: PLUGIN_SOURCE,
+    scheme: {
+      version: "1.0.0",
+      type: "rankingFilter",
+      title: "筛选排行榜",
+      fields: [
+        {
+          key: "rankType",
+          kind: "choice",
+          label: "榜单类型",
+          options: [
+            {
+              label: "日榜",
+              value: "day",
+              result: { extern: { rankType: "day" } },
+            },
+            {
+              label: "月榜",
+              value: "month",
+              result: { extern: { rankType: "month" } },
+            },
+            {
+              label: "年榜",
+              value: "year",
+              result: { extern: { rankType: "year" } },
+            },
+            {
+              label: "总榜",
+              value: "allTime",
+              result: { extern: { rankType: "allTime" } },
+            },
+          ],
+        },
+      ],
+    },
+    data: {
+      defaults: {
+        rankType: "day",
+      },
+    },
+  };
+}
+
 export async function getSettingsBundle(): Promise<SettingsBundleContract> {
   return getSettingsBundleService();
 }
@@ -183,6 +375,102 @@ export async function getCapabilitiesBundle(): Promise<
     },
     data: {},
   };
+}
+
+export async function getAdvancedSearchScheme(
+  payload: { extern?: Record<string, unknown> } = {},
+): Promise<Record<string, unknown>> {
+  const extern = asRecord(payload.extern);
+
+  const numOr = (value: unknown, fallback: number) => {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  const boolOr = (value: unknown, fallback: boolean) => {
+    if (typeof value === "boolean") return value;
+    if (typeof value === "string") {
+      if (value.toLowerCase() === "true") return true;
+      if (value.toLowerCase() === "false") return false;
+    }
+    return fallback;
+  };
+  const selectedCategories = (() => {
+    const raw = extern.categories;
+    if (Array.isArray(raw)) {
+      return raw.map((item) => String(item ?? "")).filter(Boolean);
+    }
+    if (raw && typeof raw === "object") {
+      return Object.entries(raw as Record<string, unknown>)
+        .filter(
+          ([, checked]) =>
+            checked === true || String(checked).toLowerCase() === "true",
+        )
+        .map(([key]) => String(key).trim())
+        .filter(Boolean);
+    }
+    return [
+      "misc",
+      "doujinshi",
+      "manga",
+      "artistcg",
+      "gamecg",
+      "western",
+      "nonh",
+      "imageset",
+      "cosplay",
+      "asianporn",
+    ];
+  })();
+
+  const result = {
+    source: PLUGIN_SOURCE,
+    scheme: {
+      version: "1.0.0",
+      type: "advancedSearch",
+      title: "高级搜索",
+      fields: [
+        {
+          key: "categories",
+          kind: "multiChoice",
+          label: "分类选择",
+          options: [
+            { label: "Misc", value: "misc" },
+            { label: "Doujinshi", value: "doujinshi" },
+            { label: "Manga", value: "manga" },
+            { label: "Artist CG", value: "artistcg" },
+            { label: "Game CG", value: "gamecg" },
+            { label: "Western", value: "western" },
+            { label: "Non-H", value: "nonh" },
+            { label: "Image Set", value: "imageset" },
+            { label: "Cosplay", value: "cosplay" },
+            { label: "Asian Porn", value: "asianporn" },
+          ],
+        },
+        { key: "f_sh", kind: "switch", label: "搜索 Expunged 内容" },
+        { key: "f_sto", kind: "switch", label: "只看有种子的画廊" },
+        { key: "f_spf", kind: "text", label: "最少页数" },
+        { key: "f_spt", kind: "text", label: "最多页数" },
+        { key: "f_srdd", kind: "text", label: "最低评分" },
+        { key: "f_sfl", kind: "switch", label: "禁用语言过滤" },
+        { key: "f_sfu", kind: "switch", label: "禁用上传者过滤" },
+        { key: "f_sft", kind: "switch", label: "禁用标签过滤" },
+      ],
+    },
+    data: {
+      values: {
+        categories: selectedCategories,
+        f_sh: boolOr(extern.f_sh, false),
+        f_sto: boolOr(extern.f_sto, false),
+        f_spf: String(extern.f_spf ?? ""),
+        f_spt: String(extern.f_spt ?? ""),
+        f_srdd: String(extern.f_srdd ?? ""),
+        f_sfl: boolOr(extern.f_sfl, false),
+        f_sfu: boolOr(extern.f_sfu, false),
+        f_sft: boolOr(extern.f_sft, false),
+      },
+    },
+  };
+  return result;
 }
 
 export async function startEhentaiWebLogin(
@@ -291,6 +579,11 @@ export async function setEhentaiManualCookie(
 
 export default {
   getInfo,
+  getFunctionPage,
+  getLatestData,
+  getPopularData,
+  getRankingData,
+  getRankingFilterBundle,
   searchComic,
   getComicDetail,
   getChapter,
@@ -298,6 +591,7 @@ export default {
   getReadSnapshot,
   fetchImageBytes,
   getSettingsBundle,
+  getAdvancedSearchScheme,
   getCapabilitiesBundle,
   startEhentaiWebLogin,
   setEhentaiForumCookie,
