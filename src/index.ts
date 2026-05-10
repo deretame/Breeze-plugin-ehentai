@@ -152,6 +152,7 @@ export async function getReadPages(
 export async function getReadSnapshot(
   payload: ChapterPayload = {},
 ): Promise<ReadSnapshotContract> {
+  console.log("getReadSnapshot payload", payload);
   try {
     const settings = await readSettings(payload.extern);
     return await getReadSnapshotService(payload, settings);
@@ -164,7 +165,6 @@ export async function fetchImageBytes(
   payload: FetchImageBytesPayload = {},
 ): Promise<FetchImageBytesContract> {
   try {
-    console.log("fetchImageBytes payload extern", payload.extern);
     const settings = await readSettings(payload.extern);
     return await fetchImageBytesService(payload, settings);
   } catch (error) {

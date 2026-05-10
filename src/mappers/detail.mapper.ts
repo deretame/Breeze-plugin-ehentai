@@ -1,6 +1,12 @@
 import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
 import type { ComicDetailContract } from "../domain/contracts";
 import type { DetailParsed } from "../domain/types";
+import {
+  buildGalleryChunkExtern,
+  buildGalleryChunks,
+  formatGalleryChunkName,
+  getGalleryChunkSize,
+} from "../utils/chunk";
 import { buildMediaPath } from "../utils/media-path";
 import { translateNamespace, translateTag } from "../utils/tag-translation";
 import { sanitizeMediaUrl } from "../utils/url";
@@ -139,6 +145,8 @@ export function mapComicDetail(
     titleMeta.push(withLabel("评分", ratingText));
   }
   const metadata = buildTagMetadata(detail);
+  const chunkSize = getGalleryChunkSize();
+  const chunks = buildGalleryChunks(detail.pageCount, chunkSize);
 
   return {
     source: PLUGIN_SOURCE,
@@ -183,14 +191,15 @@ export function mapComicDetail(
           },
         },
         eps: [
-          {
+          ...chunks.map((chunk) => ({
             id: comicId,
-            name: "Gallery",
+            name: formatGalleryChunkName(chunk, detail.pageCount),
             order: 1,
+            extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),
             extension: {
               pageCount: detail.pageCount ?? 0,
             },
-          },
+          })),
         ],
         recommend: [],
         totalViews: 0,

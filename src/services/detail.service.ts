@@ -41,9 +41,12 @@ export async function getComicDetailService(
       };
       mapped.data.normal.eps = mapped.data.normal.eps.map((ep) => ({
         ...ep,
+        extern: {
+          ...(ep.extern ?? {}),
+          ...buildRoutingExtern(ehUnavailable),
+        },
         extension: {
           ...ep.extension,
-          ...buildRoutingExtern(ehUnavailable),
         },
       }));
       return mapped;

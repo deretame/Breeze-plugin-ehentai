@@ -15,6 +15,14 @@ import {
 } from "../parsers/reader.parser";
 import { cache } from "../tools";
 import { buildDeferredImageUrl } from "../utils/deferred-image";
+import {
+  buildGalleryChunkExtern,
+  buildGalleryChunks,
+  formatGalleryChunkName,
+  getGalleryChunkSize,
+  resolveGalleryChunkFromExtern,
+  type GalleryChunk,
+} from "../utils/chunk";
 import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl } from "../utils/url";
 import {
@@ -49,8 +57,14 @@ type ReadSnapshotCacheEnvelope = {
 function buildReadSnapshotCacheKey(
   comicId: string,
   site: PluginSettings["site"],
+  chunk: GalleryChunk,
 ): string {
-  return [READ_SNAPSHOT_CACHE_KEY_PREFIX, site, comicId].join(":");
+  return [
+    READ_SNAPSHOT_CACHE_KEY_PREFIX,
+    site,
+    comicId,
+    `chunk=${chunk.start}-${chunk.end}`,
+  ].join(":");
 }
 
 function unwrapBridgeValue(raw: unknown, depth = 0): unknown {
@@ -225,10 +239,14 @@ function appendRangeEntries(
   >,
   range: ReaderRangeParsed,
   routingExtern: Record<string, unknown>,
+  chunk: GalleryChunk,
 ): void {
   for (let offset = 0; offset < range.thumbnails.length; offset += 1) {
     const thumbnail = range.thumbnails[offset];
     const imageIndex = range.imageNoFrom + offset + 1;
+    if (imageIndex < chunk.start || imageIndex > chunk.end) {
+      continue;
+    }
     const imagePageHref = ensureAllowedHostUrl(
       toImagePageHref(thumbnail, imageIndex),
     );
@@ -248,6 +266,22 @@ function appendRangeEntries(
   }
 }
 
+function buildThumbnailPagesForChunk(
+  firstRange: ReaderRangeParsed,
+  chunk: GalleryChunk,
+): number[] {
+  const thumbnailsPerPage = Math.max(1, firstRange.thumbnails.length);
+  const firstThumbPage = Math.floor((chunk.start - 1) / thumbnailsPerPage) + 1;
+  const lastThumbPage = Math.floor((chunk.end - 1) / thumbnailsPerPage) + 1;
+  const clampedFirst = Math.max(1, Math.min(firstRange.pageCount, firstThumbPage));
+  const clampedLast = Math.max(clampedFirst, Math.min(firstRange.pageCount, lastThumbPage));
+
+  return Array.from(
+    { length: clampedLast - clampedFirst + 1 },
+    (_, index) => clampedFirst + index,
+  );
+}
+
 export async function getReadSnapshotService(
   payload: ChapterPayload,
   settings: PluginSettings,
@@ -258,6 +292,7 @@ export async function getReadSnapshotService(
   const chapterOrder = readChapterOrder(extern);
   const incomingEhUnavailable = readEhUnavailableExtern(payload.extern);
   const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
+  const chunkSize = getGalleryChunkSize();
   let title = comicId;
   let pages: Array<{
     id: string;
@@ -266,6 +301,12 @@ export async function getReadSnapshotService(
     url: string;
     extern: Record<string, unknown>;
   }> = [];
+  let resolvedChunk: GalleryChunk = {
+    index: 1,
+    start: 1,
+    end: chunkSize,
+  };
+  let resolvedTotalPageCount = chunkSize;
   let lastError: unknown;
   let resolvedEhUnavailable = incomingEhUnavailable;
 
@@ -275,13 +316,23 @@ export async function getReadSnapshotService(
         settings.site === "EX" &&
         (incomingEhUnavailable || attempt.site === "EX");
       const routingExtern = buildRoutingExtern(ehUnavailable);
-      const cacheKey = buildReadSnapshotCacheKey(comicId, attempt.site);
-      const cached = await readCachedReadSnapshot(cacheKey);
-      if (cached) {
-        title = cached.title;
-        pages = cached.pages;
+      const requestedChunk = resolveGalleryChunkFromExtern(
+        extern,
+        undefined,
+        chunkSize,
+      );
+      const earlyCacheKey = buildReadSnapshotCacheKey(
+        comicId,
+        attempt.site,
+        requestedChunk,
+      );
+      const earlyCached = await readCachedReadSnapshot(earlyCacheKey);
+      if (earlyCached) {
+        title = earlyCached.title;
+        pages = earlyCached.pages;
+        resolvedChunk = requestedChunk;
         resolvedEhUnavailable = ehUnavailable;
-        console.log("[EH] read snapshot cache hit", cacheKey);
+        console.log("[EH] read snapshot cache hit", earlyCacheKey);
         break;
       }
       const firstDetailUrl = buildDetailEndpoint(comicId, attempt.site, 0);
@@ -290,14 +341,22 @@ export async function getReadSnapshotService(
         continue;
       }
 
+      let parsedDetailPageCount: number | undefined;
       try {
         const detail = parseDetailPage(firstHtml, comicId);
         title = detail.title || comicId;
+        parsedDetailPageCount = detail.pageCount;
       } catch {
         // Read snapshot should still work even if detail parse fails.
       }
 
       const firstRange = parseThumbnailRangePage(firstHtml);
+      resolvedTotalPageCount = parsedDetailPageCount ?? firstRange.imageCount;
+      resolvedChunk = resolveGalleryChunkFromExtern(
+        extern,
+        resolvedTotalPageCount,
+        chunkSize,
+      );
       const pageMap = new Map<
         number,
         {
@@ -308,12 +367,39 @@ export async function getReadSnapshotService(
           extern: Record<string, unknown>;
         }
       >();
-      appendRangeEntries(pageMap, firstRange, routingExtern);
-
-      const remainingThumbPages = Array.from(
-        { length: Math.max(0, firstRange.pageCount - 1) },
-        (_, index) => index + 2,
+      const chunkExtern = buildGalleryChunkExtern(
+        resolvedChunk,
+        resolvedTotalPageCount,
+        chunkSize,
       );
+      const cacheKey = buildReadSnapshotCacheKey(
+        comicId,
+        attempt.site,
+        resolvedChunk,
+      );
+      const cached = await readCachedReadSnapshot(cacheKey);
+      if (cached) {
+        title = cached.title;
+        pages = cached.pages;
+        resolvedEhUnavailable = ehUnavailable;
+        console.log("[EH] read snapshot cache hit", cacheKey);
+        break;
+      }
+
+      const requiredThumbPages = buildThumbnailPagesForChunk(
+        firstRange,
+        resolvedChunk,
+      );
+      if (requiredThumbPages.includes(1)) {
+        appendRangeEntries(
+          pageMap,
+          firstRange,
+          { ...routingExtern, ...chunkExtern },
+          resolvedChunk,
+        );
+      }
+
+      const remainingThumbPages = requiredThumbPages.filter((thumbPage) => thumbPage > 1);
 
       if (remainingThumbPages.length) {
         const parsedRanges = await mapWithConcurrency(
@@ -331,7 +417,12 @@ export async function getReadSnapshotService(
         );
 
         for (const range of parsedRanges) {
-          appendRangeEntries(pageMap, range, routingExtern);
+          appendRangeEntries(
+            pageMap,
+            range,
+            { ...routingExtern, ...chunkExtern },
+            resolvedChunk,
+          );
         }
       }
 
@@ -355,19 +446,39 @@ export async function getReadSnapshotService(
     throw parseError("no readable pages in read snapshot");
   }
 
+  const routingExtern = buildRoutingExtern(resolvedEhUnavailable);
+  const chunkExtern = buildGalleryChunkExtern(
+    resolvedChunk,
+    resolvedTotalPageCount,
+    chunkSize,
+  );
+  const chapterExtern = {
+    ...chunkExtern,
+    ...routingExtern,
+  };
+  const chunkChapters = buildGalleryChunks(resolvedTotalPageCount, chunkSize).map(
+    (chunk) => ({
+      id: chapterId,
+      name: formatGalleryChunkName(chunk, resolvedTotalPageCount),
+      order: chapterOrder,
+      extern: {
+        ...buildGalleryChunkExtern(chunk, resolvedTotalPageCount, chunkSize),
+        ...routingExtern,
+      },
+    }),
+  );
   const chapterRef = {
     id: chapterId,
-    name: "Gallery",
+    name: formatGalleryChunkName(resolvedChunk, resolvedTotalPageCount),
     order: chapterOrder,
-    extern: buildRoutingExtern(resolvedEhUnavailable),
+    extern: chapterExtern,
   };
-  const routingExtern = buildRoutingExtern(resolvedEhUnavailable);
 
   return {
     source: PLUGIN_SOURCE,
     extern: {
       ...extern,
-      ...routingExtern,
+      ...chapterExtern,
     },
     data: {
       comic: {
@@ -381,7 +492,7 @@ export async function getReadSnapshotService(
         pages,
         extern: chapterRef.extern,
       },
-      chapters: [chapterRef],
+      chapters: chunkChapters,
     },
   };
 }

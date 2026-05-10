@@ -118,7 +118,13 @@ export type ComicDetailContract = {
         }>;
         extension: Record<string, unknown>;
       };
-      eps: Array<{ id: string; name: string; order: number; extension: Record<string, unknown> }>;
+      eps: Array<{
+        id: string;
+        name: string;
+        order: number;
+        extern: Record<string, unknown>;
+        extension: Record<string, unknown>;
+      }>;
       recommend: Array<unknown>;
       totalViews: number;
       totalLikes: number;
