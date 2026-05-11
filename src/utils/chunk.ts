@@ -49,6 +49,10 @@ export function formatGalleryChunkName(chunk: GalleryChunk, totalPages?: number)
   return `Gallery ${start}-${end}`;
 }
 
+export function buildGalleryChunkId(chunk: GalleryChunk): string {
+  return `chunk-${chunk.index}`;
+}
+
 export function resolveGalleryChunkFromExtern(
   extern: Record<string, unknown>,
   totalPages?: number,

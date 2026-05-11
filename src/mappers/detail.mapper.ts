@@ -2,6 +2,7 @@ import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
 import type { ComicDetailContract } from "../domain/contracts";
 import type { DetailParsed } from "../domain/types";
 import {
+  buildGalleryChunkId,
   buildGalleryChunkExtern,
   buildGalleryChunks,
   formatGalleryChunkName,
@@ -180,7 +181,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
           },
         },
         eps: chunks.map((chunk) => ({
-          id: comicId,
+          id: buildGalleryChunkId(chunk),
           name: formatGalleryChunkName(chunk, detail.pageCount),
           order: 1,
           extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),

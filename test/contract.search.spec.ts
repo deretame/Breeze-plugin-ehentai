@@ -20,11 +20,11 @@ describe("search contract", () => {
     expect(result.scheme.type).toBe("searchResult");
     expect(result.data.items).toHaveLength(1);
     expect(result.data.items[0]).toMatchObject({
-      id: "123456/abcdef",
+      id: "123456-abcdef",
       title: "Sample English Title",
     });
     expect(result.data.items[0].cover.url).toBe("https://ehgt.org/c/1.jpg");
-    expect(result.data.items[0].cover.path).toBe("123456_abcdef.jpg");
+    expect(result.data.items[0].cover.path).toBe("123456-abcdef.jpg");
     expect(result.data.items[0].extern.href).toContain("/g/123456/abcdef/");
   });
 
@@ -88,7 +88,7 @@ describe("search contract", () => {
     const result = await searchComic({ keyword: "test" });
     expect(result.data.items).toHaveLength(2);
     expect(result.data.items[1].cover.url).toBe("https://ehgt.org/w/02/339/51729-dj7t2evr.webp");
-    expect(result.data.items[1].cover.path).toBe("3875918_7cb5fa32d0.webp");
+    expect(result.data.items[1].cover.path).toBe("3875918-7cb5fa32d0.webp");
   });
 
   test("test_searchComic_searchnav_dnext_anchor_marks_has_more", async () => {

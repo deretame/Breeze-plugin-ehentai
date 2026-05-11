@@ -9,6 +9,7 @@ import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.pars
 import { cache } from "../tools";
 import { unwrapBridgeValue } from "../utils/bridge-cache";
 import {
+  buildGalleryChunkId,
   buildGalleryChunkExtern,
   buildGalleryChunks,
   formatGalleryChunkName,
@@ -212,7 +213,7 @@ export async function getReadSnapshotService(
   settings: PluginSettings,
 ): Promise<ReadSnapshotContract> {
   const comicId = requiredString(payload.comicId, "comicId");
-  const chapterId = String(payload.chapterId ?? comicId);
+  const requestedChapterId = String(payload.chapterId ?? "").trim();
   const extern = payload.extern ?? {};
   const chapterOrder = readChapterOrder(extern);
   const incomingEhUnavailable = readEhUnavailableExtern(payload.extern);
@@ -327,15 +328,19 @@ export async function getReadSnapshotService(
     ...chunkExtern,
     ...routingExtern,
   };
-  const chunkChapters = buildGalleryChunks(resolvedTotalPageCount, chunkSize).map((chunk) => ({
-    id: chapterId,
-    name: formatGalleryChunkName(chunk, resolvedTotalPageCount),
-    order: chapterOrder,
-    extern: {
-      ...buildGalleryChunkExtern(chunk, resolvedTotalPageCount, chunkSize),
-      ...routingExtern,
-    },
-  }));
+  const chunkChapters = buildGalleryChunks(resolvedTotalPageCount, chunkSize).map((chunk) => {
+    const chunkId = buildGalleryChunkId(chunk);
+    return {
+      id: chunkId,
+      name: formatGalleryChunkName(chunk, resolvedTotalPageCount),
+      order: chapterOrder,
+      extern: {
+        ...buildGalleryChunkExtern(chunk, resolvedTotalPageCount, chunkSize),
+        ...routingExtern,
+      },
+    };
+  });
+  const chapterId = requestedChapterId || buildGalleryChunkId(resolvedChunk);
   const chapterRef = {
     id: chapterId,
     name: formatGalleryChunkName(resolvedChunk, resolvedTotalPageCount),

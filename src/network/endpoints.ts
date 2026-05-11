@@ -1,6 +1,7 @@
 import { EH_BASE_URL, EX_BASE_URL } from "../domain/constants";
 import type { SiteSetting } from "../domain/types";
-import { normalizeComicId } from "../utils/guards";
+import { splitComicId } from "../utils/guards";
+import { validationError } from "../errors/plugin-error";
 import { ensureAllowedHostUrl } from "../utils/url";
 
 function resolveSiteBase(site: SiteSetting): string {
@@ -36,8 +37,11 @@ export function buildSearchNavigationEndpoint(navigationUrl: string, site: SiteS
 }
 
 export function buildDetailEndpoint(comicId: string, site: SiteSetting, page = 0): string {
-  const safeComicId = normalizeComicId(comicId);
-  const url = new URL(`/g/${safeComicId}/`, resolveSiteBase(site));
+  const { gid, token } = splitComicId(comicId);
+  if (!gid || !token) {
+    throw validationError("comicId format is invalid");
+  }
+  const url = new URL(`/g/${gid}/${token}/`, resolveSiteBase(site));
   if (page > 0) {
     url.searchParams.set("p", String(page));
   }

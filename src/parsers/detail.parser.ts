@@ -3,6 +3,7 @@ import type { DetailParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { parsePageCount, toInt } from "../utils/number";
 import { normalizeWhitespace } from "../utils/text";
+import { splitComicId } from "../utils/guards";
 
 function parseCoverUrl($: cheerio.CheerioAPI): string {
   const style = String($("#gd1 > div").attr("style") ?? "").trim();
@@ -86,9 +87,7 @@ export function parseDetailPage(html: string, comicId: string): DetailParsed {
     return acc;
   }, {});
 
-  const tokenMatch = /\/g\/(\d+)\/([a-zA-Z0-9-]+)/.exec(comicId);
-  const gid = tokenMatch?.[1] ?? comicId.split("/")[0] ?? comicId;
-  const token = tokenMatch?.[2] ?? comicId.split("/")[1] ?? "";
+  const { gid, token } = splitComicId(comicId);
 
   const coverUrl = parseCoverUrl($);
   const uploader = normalizeWhitespace($("#gdn a").first().text() || $("#gdn").first().text())

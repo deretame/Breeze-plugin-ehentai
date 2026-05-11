@@ -61,7 +61,7 @@ describe("detail contract", () => {
       ],
     });
     expect(result.data.normal.eps).toHaveLength(1);
-    expect(result.data.normal.eps[0].id).toBe("123456/abcdef");
+    expect(result.data.normal.eps[0].id).toBe("chunk-1");
     expect(result.data.normal.eps[0]).toMatchObject({
       name: "Gallery 001-042",
       order: 1,

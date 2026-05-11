@@ -124,7 +124,7 @@ describe("read snapshot contract", () => {
     expect(getTextSpy).toHaveBeenCalledTimes(1);
     expect(result.data.chapters).toEqual([
       {
-        id: "123456/abcdef",
+        id: "chunk-1",
         name: "Gallery 001-003",
         order: 1,
         extern: {

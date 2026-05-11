@@ -3,8 +3,9 @@ import type { SearchParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { toInt } from "../utils/number";
 import { normalizeWhitespace } from "../utils/text";
+import { buildTokenizedComicId } from "../utils/guards";
 
-const DETAIL_ID_REGEX = /\/g\/(\d+\/[a-zA-Z0-9-]+)\/?/;
+const DETAIL_ID_REGEX = /\/g\/(\d+)\/([a-zA-Z0-9-]+)\/?/;
 const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
 const COVER_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "src"] as const;
 const PLACEHOLDER_MARKERS = ["data:image", "base64,", "blank.gif", "spacer", "/img/blank"];
@@ -143,7 +144,8 @@ export function parseSearchPage(html: string): SearchParsed {
       const root = $(node);
       const anchor = root.find("a").first();
       const href = String(anchor.attr("href") ?? "").trim();
-      const id = DETAIL_ID_REGEX.exec(href)?.[1] ?? "";
+      const idMatch = DETAIL_ID_REGEX.exec(href);
+      const id = idMatch ? buildTokenizedComicId(idMatch[1], idMatch[2]) : "";
       const title = normalizeWhitespace(root.find(".glink").text() || anchor.text());
       const coverUrl = resolveCoverUrl(root);
       const category = normalizeWhitespace(root.closest("tr").find(".cn").text());
