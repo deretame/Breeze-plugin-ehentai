@@ -41,14 +41,8 @@ export function buildGalleryChunks(
   return chunks;
 }
 
-export function formatGalleryChunkName(
-  chunk: GalleryChunk,
-  totalPages?: number,
-): string {
-  const maxPage = Math.max(
-    normalizePositiveInt(totalPages) ?? chunk.end,
-    chunk.end,
-  );
+export function formatGalleryChunkName(chunk: GalleryChunk, totalPages?: number): string {
+  const maxPage = Math.max(normalizePositiveInt(totalPages) ?? chunk.end, chunk.end);
   const width = Math.max(3, String(maxPage).length);
   const start = String(chunk.start).padStart(width, "0");
   const end = String(chunk.end).padStart(width, "0");
@@ -66,12 +60,9 @@ export function resolveGalleryChunkFromExtern(
   const requestedEnd = normalizePositiveInt(extern.chunkEnd);
 
   if (requestedStart && requestedEnd && requestedStart <= requestedEnd) {
-    const normalizedEnd = totalPages
-      ? Math.min(requestedEnd, totalPages)
-      : requestedEnd;
+    const normalizedEnd = totalPages ? Math.min(requestedEnd, totalPages) : requestedEnd;
     const matchingChunk = chunks.find(
-      (chunk) =>
-        chunk.start === requestedStart && chunk.end === normalizedEnd,
+      (chunk) => chunk.start === requestedStart && chunk.end === normalizedEnd,
     );
     if (matchingChunk) {
       return matchingChunk;

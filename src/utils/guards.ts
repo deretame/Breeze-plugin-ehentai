@@ -42,7 +42,9 @@ export function ensureArray<T>(value: unknown): T[] {
 }
 
 export function normalizeKeyword(value: unknown): string {
-  const keyword = String(value ?? "").replace(/\s+/g, " ").trim();
+  const keyword = String(value ?? "")
+    .replace(/\s+/g, " ")
+    .trim();
   if (!keyword) {
     throw validationError("keyword is required");
   }

@@ -50,7 +50,9 @@ afterEach(() => {
 });
 
 function installInMemoryBridgeCache(): () => void {
-  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const host = globalThis as {
+    bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> };
+  };
   const previousBridge = host.bridge;
   const cacheStore = new Map<string, unknown>();
 
@@ -189,4 +191,3 @@ describe("read snapshot contract", () => {
     expect(getTextSpy).toHaveBeenCalledTimes(11);
   });
 });
-

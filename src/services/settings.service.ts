@@ -1,8 +1,4 @@
-import {
-  DEFAULT_SETTINGS,
-  EH_FORUM_COOKIE_CONFIG_KEY,
-  EX_BASE_URL,
-} from "../domain/constants";
+import { DEFAULT_SETTINGS, EH_FORUM_COOKIE_CONFIG_KEY, EX_BASE_URL } from "../domain/constants";
 import type { SettingsBundleContract } from "../domain/contracts";
 import type { PluginSettings, SiteSetting } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
@@ -11,10 +7,7 @@ import { flutterTools, pluginConfig } from "../tools";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
-const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set([
-  "exhentai.org",
-  "forums.e-hentai.org",
-]);
+const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set(["exhentai.org", "forums.e-hentai.org"]);
 const EX_AUTH_REDIRECT_MAX_STEPS = 6;
 const IGNEOUS_PLACEHOLDER_VALUES = new Set(["mystery"]);
 
@@ -44,16 +37,9 @@ function decodeConfigString(raw: unknown, fallback = ""): string {
       (parsed as Record<string, unknown>).ok === true &&
       "value" in (parsed as Record<string, unknown>)
     ) {
-      return decodeConfigString(
-        (parsed as Record<string, unknown>).value,
-        fallback,
-      );
+      return decodeConfigString((parsed as Record<string, unknown>).value, fallback);
     }
-    if (
-      typeof parsed === "string" ||
-      typeof parsed === "number" ||
-      typeof parsed === "boolean"
-    ) {
+    if (typeof parsed === "string" || typeof parsed === "number" || typeof parsed === "boolean") {
       return String(parsed);
     }
   } catch {
@@ -62,9 +48,7 @@ function decodeConfigString(raw: unknown, fallback = ""): string {
   return text;
 }
 
-function splitCookiePair(
-  rawPair: string,
-): { name: string; value: string } | null {
+function splitCookiePair(rawPair: string): { name: string; value: string } | null {
   const token = String(rawPair ?? "").trim();
   if (!token) {
     return null;
@@ -81,10 +65,7 @@ function splitCookiePair(
   return { name, value };
 }
 
-export function removeCookieNames(
-  rawCookie: unknown,
-  cookieNames: string[],
-): string {
+export function removeCookieNames(rawCookie: unknown, cookieNames: string[]): string {
   const normalized = sanitizeForumCookie(rawCookie);
   if (!normalized) {
     return "";
@@ -147,10 +128,7 @@ function hasUsableIgneous(rawCookie: string): boolean {
   return true;
 }
 
-function readHeaderValue(
-  headers: HttpTextResponseMeta["headers"],
-  name: string,
-): string {
+function readHeaderValue(headers: HttpTextResponseMeta["headers"], name: string): string {
   const raw = headers[name.toLowerCase()];
   if (Array.isArray(raw)) {
     return String(raw[0] ?? "").trim();
@@ -158,15 +136,9 @@ function readHeaderValue(
   return String(raw ?? "").trim();
 }
 
-function readSetCookiePairs(
-  headers: HttpTextResponseMeta["headers"],
-): string[] {
+function readSetCookiePairs(headers: HttpTextResponseMeta["headers"]): string[] {
   const raw = headers["set-cookie"];
-  const setCookieEntries = Array.isArray(raw)
-    ? raw
-    : typeof raw === "string"
-      ? [raw]
-      : [];
+  const setCookieEntries = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
   const pairs: string[] = [];
   for (const entry of setCookieEntries) {
     const firstToken =
@@ -237,10 +209,7 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
       return currentCookie;
     }
 
-    const nextUrl = resolveRedirectUrl(
-      readHeaderValue(response.headers, "location"),
-      currentUrl,
-    );
+    const nextUrl = resolveRedirectUrl(readHeaderValue(response.headers, "location"), currentUrl);
     if (!nextUrl) {
       return currentCookie;
     }
@@ -250,10 +219,7 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
   return currentCookie;
 }
 
-async function maybeRefreshExhentaiCookie(
-  site: SiteSetting,
-  forumCookie: string,
-): Promise<string> {
+async function maybeRefreshExhentaiCookie(site: SiteSetting, forumCookie: string): Promise<string> {
   let normalizedCookie = sanitizeForumCookie(forumCookie);
   if (site !== "EX" || !normalizedCookie) {
     return normalizedCookie;
@@ -273,9 +239,7 @@ async function maybeRefreshExhentaiCookie(
   }
 }
 
-async function fallbackToEhIfExAccessDenied(
-  settings: PluginSettings,
-): Promise<PluginSettings> {
+async function fallbackToEhIfExAccessDenied(settings: PluginSettings): Promise<PluginSettings> {
   if (settings.site !== "EX" || !exAccessDeniedCached) {
     return settings;
   }
@@ -332,9 +296,7 @@ export function sanitizeForumCookie(rawCookie: unknown): string {
     .join("; ");
 }
 
-export function buildRequestHeaders(
-  settings: PluginSettings,
-): Record<string, string> {
+export function buildRequestHeaders(settings: PluginSettings): Record<string, string> {
   const cookie = sanitizeForumCookie(settings.forumCookie);
   if (!cookie) {
     return {};
@@ -356,8 +318,7 @@ async function loadConfigString(key: string, fallback = ""): Promise<string> {
   try {
     const raw = await pluginConfig.load(key, fallback);
     const normalized = decodeConfigString(raw, fallback);
-    const currentRaw =
-      typeof raw === "string" ? raw : raw == null ? "" : String(raw);
+    const currentRaw = typeof raw === "string" ? raw : raw == null ? "" : String(raw);
     if (currentRaw !== normalized) {
       try {
         await pluginConfig.save(key, normalized);
@@ -386,10 +347,7 @@ export function resetExAccessProbeCache(): void {
   exFallbackNotified = false;
 }
 
-function readExternString(
-  extern: Record<string, unknown>,
-  key: string,
-): string {
+function readExternString(extern: Record<string, unknown>, key: string): string {
   if (extern[key] === undefined || extern[key] === null) {
     return "";
   }
@@ -401,18 +359,11 @@ export async function readSettings(
   options?: { skipExProbe?: boolean },
 ): Promise<PluginSettings> {
   const externMap = asRecord(extern);
-  const [storedSite, storedImageProxyEnabled, storedForumCookie] =
-    await Promise.all([
-      loadConfigString("site", DEFAULT_SETTINGS.site),
-      loadConfigString(
-        "imageProxyEnabled",
-        String(DEFAULT_SETTINGS.imageProxyEnabled),
-      ),
-      loadConfigString(
-        EH_FORUM_COOKIE_CONFIG_KEY,
-        DEFAULT_SETTINGS.forumCookie,
-      ),
-    ]);
+  const [storedSite, storedImageProxyEnabled, storedForumCookie] = await Promise.all([
+    loadConfigString("site", DEFAULT_SETTINGS.site),
+    loadConfigString("imageProxyEnabled", String(DEFAULT_SETTINGS.imageProxyEnabled)),
+    loadConfigString(EH_FORUM_COOKIE_CONFIG_KEY, DEFAULT_SETTINGS.forumCookie),
+  ]);
 
   const merged = {
     site: readExternString(externMap, "site") || storedSite,
@@ -430,10 +381,7 @@ export async function readSettings(
   let forumCookie = settings.forumCookie;
 
   if (!options?.skipExProbe) {
-    forumCookie = await maybeRefreshExhentaiCookie(
-      settings.site,
-      settings.forumCookie,
-    );
+    forumCookie = await maybeRefreshExhentaiCookie(settings.site, settings.forumCookie);
     settings = await fallbackToEhIfExAccessDenied(settings);
   }
 

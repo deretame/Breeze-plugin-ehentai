@@ -13,7 +13,11 @@ import {
 import { parseDeferredImageUrl } from "../utils/deferred-image";
 import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl, ensureAllowedMediaUrl } from "../utils/url";
-import { buildNonSearchSiteAttempts, remapGalleryHostForSite, type RequestConfig } from "./site-routing.service";
+import {
+  buildNonSearchSiteAttempts,
+  remapGalleryHostForSite,
+  type RequestConfig,
+} from "./site-routing.service";
 
 function normalizeNativeBufferId(value: unknown): number {
   const nativeBufferId = Number(value);
@@ -29,10 +33,7 @@ async function resolveImageUrlFromImagePage(
 ): Promise<string> {
   const safeImagePageHref = ensureAllowedHostUrl(imagePageHref);
   const imagePageHtml = requestConfig
-    ? await httpClient.getText(
-        buildImagePageEndpoint(safeImagePageHref),
-        requestConfig,
-      )
+    ? await httpClient.getText(buildImagePageEndpoint(safeImagePageHref), requestConfig)
     : await httpClient.getText(buildImagePageEndpoint(safeImagePageHref));
 
   try {
@@ -53,9 +54,7 @@ async function resolveImageUrlFromImagePage(
           buildImagePageEndpoint(safeImagePageHref, reloadKey),
           requestConfig,
         )
-      : await httpClient.getText(
-          buildImagePageEndpoint(safeImagePageHref, reloadKey),
-        );
+      : await httpClient.getText(buildImagePageEndpoint(safeImagePageHref, reloadKey));
     const retried = parseImagePage(safeImagePageHref, retriedHtml);
     return ensureAllowedMediaUrl(retried.imageUrl);
   }

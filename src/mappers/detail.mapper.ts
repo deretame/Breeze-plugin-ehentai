@@ -20,10 +20,7 @@ function actionItem(
   onTap: Record<string, unknown>;
   extension: Record<string, unknown>;
 } {
-  const text =
-    value == null || String(value).trim() === ""
-      ? FALLBACK_UNKNOWN
-      : String(value);
+  const text = value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
   return {
     name: text,
     onTap,
@@ -40,9 +37,7 @@ function withLabel(
   extension: Record<string, unknown>;
 } {
   const normalizedValue =
-    value == null || String(value).trim() === ""
-      ? FALLBACK_UNKNOWN
-      : String(value);
+    value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
   return actionItem(`${label}：${normalizedValue}`);
 }
 
@@ -107,10 +102,7 @@ function buildTagMetadata(detail: DetailParsed): Array<{
     );
 }
 
-export function mapComicDetail(
-  comicId: string,
-  detail: DetailParsed,
-): ComicDetailContract {
+export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDetailContract {
   const coverUrl = sanitizeMediaUrl(detail.coverUrl);
   const titleMeta: Array<{
     name: string;
@@ -127,10 +119,7 @@ export function mapComicDetail(
     withLabel("上传者", detail.uploader),
     withLabel("语言", detail.language),
     withLabel("文件大小", detail.fileSize),
-    withLabel(
-      "页数",
-      detail.pageCount == null ? undefined : `${detail.pageCount} 页`,
-    ),
+    withLabel("页数", detail.pageCount == null ? undefined : `${detail.pageCount} 页`),
     withLabel("发布时间", detail.posted),
   );
 
@@ -190,17 +179,15 @@ export function mapComicDetail(
             tagsByNamespace: detail.tagsByNamespace,
           },
         },
-        eps: [
-          ...chunks.map((chunk) => ({
-            id: comicId,
-            name: formatGalleryChunkName(chunk, detail.pageCount),
-            order: 1,
-            extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),
-            extension: {
-              pageCount: detail.pageCount ?? 0,
-            },
-          })),
-        ],
+        eps: chunks.map((chunk) => ({
+          id: comicId,
+          name: formatGalleryChunkName(chunk, detail.pageCount),
+          order: 1,
+          extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),
+          extension: {
+            pageCount: detail.pageCount ?? 0,
+          },
+        })),
         recommend: [],
         totalViews: 0,
         totalLikes: 0,

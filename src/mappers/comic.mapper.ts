@@ -4,11 +4,14 @@ import type { SearchParsed, SearchComicPayload } from "../domain/types";
 import { buildMediaPath } from "../utils/media-path";
 import { sanitizeMediaUrl } from "../utils/url";
 
-export function mapSearchResult(payload: SearchComicPayload, parsed: SearchParsed): SearchResultContract {
+export function mapSearchResult(
+  payload: SearchComicPayload,
+  parsed: SearchParsed,
+): SearchResultContract {
   const currentPage = Math.max(1, Number(payload.page ?? parsed.page ?? 1));
   const pages = Math.max(parsed.pages, currentPage + (parsed.hasNext ? 1 : 0));
   const extern = {
-    ...(payload.extern ?? {}),
+    ...payload.extern,
     nextUrl: parsed.nextUrl ?? "",
     prevUrl: parsed.prevUrl ?? "",
   };

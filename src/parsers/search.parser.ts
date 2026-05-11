@@ -6,19 +6,8 @@ import { normalizeWhitespace } from "../utils/text";
 
 const DETAIL_ID_REGEX = /\/g\/(\d+\/[a-zA-Z0-9-]+)\/?/;
 const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
-const COVER_ATTRIBUTES = [
-  "data-src",
-  "data-lazy-src",
-  "data-original",
-  "src",
-] as const;
-const PLACEHOLDER_MARKERS = [
-  "data:image",
-  "base64,",
-  "blank.gif",
-  "spacer",
-  "/img/blank",
-];
+const COVER_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "src"] as const;
+const PLACEHOLDER_MARKERS = ["data:image", "base64,", "blank.gif", "spacer", "/img/blank"];
 
 function parsePaging($: cheerio.CheerioAPI): {
   page: number;
@@ -54,9 +43,7 @@ function parsePaging($: cheerio.CheerioAPI): {
     .map((_, node) => toInt($(node).text(), 0))
     .get()
     .filter((value) => value > 0);
-  const pages = pageCandidates.length
-    ? Math.max(...pageCandidates)
-    : selectedPage;
+  const pages = pageCandidates.length ? Math.max(...pageCandidates) : selectedPage;
 
   const totalText = normalizeWhitespace($(".ip").first().text());
   const totalMatch = /(\d[\d,]*)\s+results?/i.exec(totalText);
@@ -104,11 +91,7 @@ export function parseSearchPage(html: string): SearchParsed {
   }
 
   function resolveCoverUrl(root: cheerio.Cheerio<any>): string {
-    const scopes = [
-      root.closest("tr"),
-      root.closest(".itg > div"),
-      root.closest("div"),
-    ];
+    const scopes = [root.closest("tr"), root.closest(".itg > div"), root.closest("div")];
 
     const candidates: string[] = [];
 
@@ -161,13 +144,9 @@ export function parseSearchPage(html: string): SearchParsed {
       const anchor = root.find("a").first();
       const href = String(anchor.attr("href") ?? "").trim();
       const id = DETAIL_ID_REGEX.exec(href)?.[1] ?? "";
-      const title = normalizeWhitespace(
-        root.find(".glink").text() || anchor.text(),
-      );
+      const title = normalizeWhitespace(root.find(".glink").text() || anchor.text());
       const coverUrl = resolveCoverUrl(root);
-      const category = normalizeWhitespace(
-        root.closest("tr").find(".cn").text(),
-      );
+      const category = normalizeWhitespace(root.closest("tr").find(".cn").text());
       const uploader = normalizeWhitespace(
         root.closest("tr").find(".gl4c a, .gl5m a").first().text(),
       );

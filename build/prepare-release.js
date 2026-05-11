@@ -3,9 +3,7 @@ import fs from "node:fs";
 const constantsPath = "src/domain/constants.ts";
 
 const constantsSource = fs.readFileSync(constantsPath, "utf8");
-const versionMatch = constantsSource.match(
-  /export const PLUGIN_VERSION = "([^"]+)";/,
-);
+const versionMatch = constantsSource.match(/export const PLUGIN_VERSION = "([^"]+)";/);
 
 if (!versionMatch) {
   throw new Error(`PLUGIN_VERSION declaration not found in ${constantsPath}`);

@@ -14,20 +14,18 @@ function toBoolean(value: unknown): boolean {
   if (typeof value === "boolean") {
     return value;
   }
-  const text = String(value ?? "").trim().toLowerCase();
+  const text = String(value ?? "")
+    .trim()
+    .toLowerCase();
   return text === "1" || text === "true" || text === "yes";
 }
 
-export function readEhUnavailableExtern(
-  extern?: Record<string, unknown>,
-): boolean {
+export function readEhUnavailableExtern(extern?: Record<string, unknown>): boolean {
   const externMap = asRecord(extern);
   return toBoolean(externMap[EH_UNAVAILABLE_EXTERN_KEY]);
 }
 
-export function buildRoutingExtern(
-  ehUnavailable: boolean,
-): Record<string, unknown> {
+export function buildRoutingExtern(ehUnavailable: boolean): Record<string, unknown> {
   if (!ehUnavailable) {
     return {};
   }
@@ -76,10 +74,7 @@ export function buildNonSearchSiteAttempts(
   ];
 }
 
-export function remapGalleryHostForSite(
-  input: string,
-  site: SiteSetting,
-): string {
+export function remapGalleryHostForSite(input: string, site: SiteSetting): string {
   const raw = String(input ?? "").trim();
   if (!raw) {
     return raw;

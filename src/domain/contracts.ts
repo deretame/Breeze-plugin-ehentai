@@ -93,12 +93,24 @@ export type ComicDetailContract = {
         description: string;
         likesCount: number;
         viewsCount: number;
-        cover: { id: string; url: string; name: string; path: string; extension: Record<string, unknown> };
+        cover: {
+          id: string;
+          url: string;
+          name: string;
+          path: string;
+          extension: Record<string, unknown>;
+        };
         creator: {
           id: string;
           name: string;
           subtitle: string;
-          avatar: { id: string; url: string; name: string; path: string; extension: Record<string, unknown> };
+          avatar: {
+            id: string;
+            url: string;
+            name: string;
+            path: string;
+            extension: Record<string, unknown>;
+          };
           onTap: Record<string, unknown>;
           extension: Record<string, unknown>;
         };

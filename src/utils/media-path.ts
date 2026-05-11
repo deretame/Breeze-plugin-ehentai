@@ -1,4 +1,4 @@
-const INVALID_PATH_CHARS_REGEX = /[<>:"/\\|?*\x00-\x1F]/g;
+const INVALID_PATH_CHARS_REGEX = /[<>:"/\\|?*]/g;
 const NON_ASCII_SAFE_REGEX = /[^A-Za-z0-9._-]/g;
 const EXTENSION_REGEX = /\.([a-z0-9]{1,8})$/i;
 
@@ -6,6 +6,7 @@ function sanitizeMediaId(id: string): string {
   const trimmed = String(id).trim();
   const replaced = trimmed
     .replace(INVALID_PATH_CHARS_REGEX, "_")
+    .replace(/\p{Cc}/gu, "_")
     .replace(/\s+/g, "_")
     .replace(NON_ASCII_SAFE_REGEX, "_")
     .replace(/_+/g, "_")

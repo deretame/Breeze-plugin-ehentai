@@ -13,7 +13,9 @@ afterEach(() => {
 });
 
 function installInMemoryBridgeCache(): () => void {
-  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const host = globalThis as {
+    bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> };
+  };
   const previousBridge = host.bridge;
   const cacheStore = new Map<string, unknown>();
 
@@ -53,7 +55,9 @@ function installInMemoryBridgeCache(): () => void {
 }
 
 function installWrappedInMemoryBridgeCache(): () => void {
-  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const host = globalThis as {
+    bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> };
+  };
   const previousBridge = host.bridge;
   const cacheStore = new Map<string, unknown>();
 
@@ -117,7 +121,10 @@ function paginatedThumbnailFixture(
   hrefs: string[],
 ): string {
   const anchors = hrefs
-    .map((href, index) => `<a href="${href}"><div data-orghash="abcdefghij${imageStartNo + index}"></div></a>`)
+    .map(
+      (href, index) =>
+        `<a href="${href}"><div data-orghash="abcdefghij${imageStartNo + index}"></div></a>`,
+    )
     .join("\n");
   const imageEndNo = imageStartNo + hrefs.length - 1;
 
@@ -143,7 +150,11 @@ describe("chapter contract", () => {
     getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
     getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
 
-    const result = await getChapter({ comicId: "123456/abcdef", chapterId: "123456/abcdef", page: 1 });
+    const result = await getChapter({
+      comicId: "123456/abcdef",
+      chapterId: "123456/abcdef",
+      page: 1,
+    });
     expect(result.scheme.type).toBe("chapterContent");
     expect(result.data.chapter.length).toBe(3);
     expect(result.data.chapter.docs[0].id).toBe("1");
@@ -181,6 +192,43 @@ describe("chapter contract", () => {
       thumbnailPageCount: 2,
       mergedAllThumbnailPages: true,
     });
+    expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
+  });
+
+  test("test_getChapter_with_chunk_extern_only_returns_requested_chunk_docs", async () => {
+    const getTextSpy = vi.spyOn(httpClient, "getText");
+    getTextSpy.mockImplementation(async (url: string) => {
+      if (url.includes("/g/123456/abcdef/") && url.includes("p=1")) {
+        return paginatedThumbnailFixture(2, 2, 3, 4, [
+          "https://e-hentai.org/s/a3/123-3",
+          "https://e-hentai.org/s/a4/123-4",
+        ]);
+      }
+      if (url.includes("/g/123456/abcdef/")) {
+        return paginatedThumbnailFixture(1, 2, 1, 4, [
+          "https://e-hentai.org/s/a1/123-1",
+          "https://e-hentai.org/s/a2/123-2",
+        ]);
+      }
+      if (url.includes("/s/")) {
+        return fixture("image-page.html");
+      }
+      throw new Error(`unexpected url: ${url}`);
+    });
+
+    const result = await getChapter({
+      comicId: "123456/abcdef",
+      page: 1,
+      extern: {
+        chunkIndex: 2,
+        chunkStart: 3,
+        chunkEnd: 4,
+        chunkSize: 2,
+        totalPageCount: 4,
+      },
+    });
+    expect(result.data.chapter.length).toBe(2);
+    expect(result.data.chapter.docs.map((doc) => doc.id)).toEqual(["3", "4"]);
     expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
   });
 
@@ -242,7 +290,9 @@ describe("chapter contract", () => {
   });
 
   test("test_getChapter_invalid_comicId_path_segment_returns_validation_error", async () => {
-    await expect(getChapter({ comicId: "123456/%2fabc", chapterId: "123456/%2fabc", page: 1 })).rejects.toMatchObject({
+    await expect(
+      getChapter({ comicId: "123456/%2fabc", chapterId: "123456/%2fabc", page: 1 }),
+    ).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
     });
   });

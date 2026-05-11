@@ -2,10 +2,7 @@ import type { SearchResultContract } from "../domain/contracts";
 import type { PluginSettings, SearchComicPayload } from "../domain/types";
 import { mapSearchResult } from "../mappers/comic.mapper";
 import { httpClient } from "../network/client";
-import {
-  buildSearchEndpoint,
-  buildSearchNavigationEndpoint,
-} from "../network/endpoints";
+import { buildSearchEndpoint, buildSearchNavigationEndpoint } from "../network/endpoints";
 import { parseSearchPage } from "../parsers/search.parser";
 import { asRecord, normalizeKeyword, normalizePage } from "../utils/guards";
 import { buildRequestConfig } from "./settings.service";
@@ -42,9 +39,16 @@ function pickValue(
 function readSelectedCategories(value: unknown): Set<string> | undefined {
   if (Array.isArray(value)) {
     return new Set(
-      value.map((item) => String(item ?? "").trim().toLowerCase()).filter(Boolean),
+      value
+        .map((item) =>
+          String(item ?? "")
+            .trim()
+            .toLowerCase(),
+        )
+        .filter(Boolean),
     );
   }
+
   if (value && typeof value === "object") {
     const map = value as Record<string, unknown>;
     const selected = Object.entries(map)
@@ -76,9 +80,7 @@ function buildAdvancedQuery(
   payloadMap: Record<string, unknown>,
 ): Record<string, unknown> {
   const query: Record<string, unknown> = {};
-  const selectedCategories = readSelectedCategories(
-    pickValue(extern, payloadMap, "categories"),
-  );
+  const selectedCategories = readSelectedCategories(pickValue(extern, payloadMap, "categories"));
   if (selectedCategories) {
     query.f_cats = computeFCatsBySelectedCategories(selectedCategories);
   } else {

@@ -100,7 +100,9 @@ describe("detail contract", () => {
     vi.spyOn(httpClient, "getText").mockResolvedValueOnce(styledHtml);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
-    expect(result.data.normal.comicInfo.cover.url).toBe("https://s.exhentai.org/t/detail-cover.jpg");
+    expect(result.data.normal.comicInfo.cover.url).toBe(
+      "https://s.exhentai.org/t/detail-cover.jpg",
+    );
     expect(result.data.normal.comicInfo.cover.path).toBe("123456_abcdef.jpg");
   });
 

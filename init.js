@@ -10,8 +10,7 @@ if (!GITHUB_TOKEN) {
   process.exit(1);
 }
 
-const REPO_API =
-  "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
+const REPO_API = "https://api.github.com/repos/EhTagTranslation/Database/releases/latest";
 const TARGET_DIR = "./src";
 const OUTPUT_FILE = path.join(TARGET_DIR, "data.js");
 
@@ -29,9 +28,7 @@ https
     let body = "";
 
     if (res.statusCode !== 200) {
-      console.error(
-        `❌ API 请求失败 [${res.statusCode}]。请检查 Token 是否有效或是否超限。`,
-      );
+      console.error(`❌ API 请求失败 [${res.statusCode}]。请检查 Token 是否有效或是否超限。`);
       return;
     }
 
@@ -87,10 +84,8 @@ function downloadFile(url) {
         fs.writeFileSync(OUTPUT_FILE, finalContent, "utf8");
         console.log(`\n✅ 处理完成！`);
         console.log(`📍 文件位置: ${OUTPUT_FILE}`);
-        console.log(
-          `📊 数据大小: ${(finalContent.length / 1024 / 1024).toFixed(2)} MB`,
-        );
-      } catch (err) {
+        console.log(`📊 数据大小: ${(finalContent.length / 1024 / 1024).toFixed(2)} MB`);
+      } catch {
         console.error("❌ 转换失败：下载的文件内容不是有效的 JSON");
       }
     });

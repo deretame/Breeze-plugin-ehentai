@@ -1,10 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { httpClient } from "../src/network/client";
 import { flutterTools, pluginConfig } from "../src/tools";
-import {
-  readSettings,
-  resetExAccessProbeCache,
-} from "../src/services/settings.service";
+import { readSettings, resetExAccessProbeCache } from "../src/services/settings.service";
 
 beforeEach(() => {
   resetExAccessProbeCache();
@@ -28,13 +25,11 @@ describe("settings exhentai igneous redirect flow", () => {
   });
 
   test("test_readSettings_ex_cookie_without_ex_access_removes_igneous", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue(
-      {
-        status: 200,
-        data: "",
-        headers: {},
-      },
-    );
+    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
+      status: 200,
+      data: "",
+      headers: {},
+    });
     const saveSpy = vi.spyOn(pluginConfig, "save").mockResolvedValue("");
     const toastSpy = vi.spyOn(flutterTools, "showToast").mockResolvedValue("");
 
@@ -53,13 +48,11 @@ describe("settings exhentai igneous redirect flow", () => {
   });
 
   test("test_readSettings_ex_cookie_empty_ex_home_marks_access_denied_cache", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue(
-      {
-        status: 200,
-        data: "",
-        headers: {},
-      },
-    );
+    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
+      status: 200,
+      data: "",
+      headers: {},
+    });
 
     const extern = {
       site: "EX",
@@ -82,8 +75,7 @@ describe("settings exhentai igneous redirect flow", () => {
         status: 302,
         data: "",
         headers: {
-          location:
-            "https://forums.e-hentai.org/remoteapi.php?ex=MTc3NzI2MTE4OS1hMWQzNzRjYWFl",
+          location: "https://forums.e-hentai.org/remoteapi.php?ex=MTc3NzI2MTE4OS1hMWQzNzRjYWFl",
         },
       })
       .mockResolvedValueOnce({
