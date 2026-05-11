@@ -62,6 +62,16 @@ describe("detail contract", () => {
     });
     expect(result.data.normal.eps).toHaveLength(1);
     expect(result.data.normal.eps[0].id).toBe("123456/abcdef");
+    expect(result.data.normal.eps[0]).toMatchObject({
+      name: "Gallery 001-042",
+      order: 1,
+      extern: {
+        chunkIndex: 1,
+        chunkStart: 1,
+        chunkEnd: 42,
+        chunkSize: 200,
+      },
+    });
   });
 
   test("test_getComicDetail_invalid_cover_url_returns_empty_cover_url", async () => {
@@ -90,7 +100,9 @@ describe("detail contract", () => {
     vi.spyOn(httpClient, "getText").mockResolvedValueOnce(styledHtml);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
-    expect(result.data.normal.comicInfo.cover.url).toBe("https://s.exhentai.org/t/detail-cover.jpg");
+    expect(result.data.normal.comicInfo.cover.url).toBe(
+      "https://s.exhentai.org/t/detail-cover.jpg",
+    );
     expect(result.data.normal.comicInfo.cover.path).toBe("123456_abcdef.jpg");
   });
 
@@ -183,6 +195,33 @@ describe("detail contract", () => {
   test("test_getComicDetail_invalid_comicId_path_segment_returns_validation_error", async () => {
     await expect(getComicDetail({ comicId: "123456/abc?x=1" })).rejects.toMatchObject({
       code: "VALIDATION_ERROR",
+    });
+  });
+
+  test("test_getComicDetail_large_gallery_is_split_into_chunked_eps", async () => {
+    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+      <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
+      <div id="gn">Large Gallery</div>
+      <div id="gdc"><div class="cs">Manga</div></div>
+      <div id="gdn"><a>uploader-name</a></div>
+      <div id="gdd"><table><tr><td class="gdt1">Length:</td><td class="gdt2">450 pages</td></tr></table></div>
+      <div id="taglist"></div>
+    `);
+
+    const result = await getComicDetail({ comicId: "123456/abcdef" });
+    expect(result.data.normal.eps).toHaveLength(3);
+    expect(result.data.normal.eps.map((ep) => ep.name)).toEqual([
+      "Gallery 001-200",
+      "Gallery 201-400",
+      "Gallery 401-450",
+    ]);
+    expect(result.data.normal.eps[1].order).toBe(1);
+    expect(result.data.normal.eps[1].extern).toMatchObject({
+      chunkIndex: 2,
+      chunkStart: 201,
+      chunkEnd: 400,
+      chunkSize: 200,
+      totalPageCount: 450,
     });
   });
 });

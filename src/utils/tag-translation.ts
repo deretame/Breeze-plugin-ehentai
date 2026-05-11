@@ -35,9 +35,7 @@ for (const entry of entries) {
   }
 
   namespaceAliasMap.set(namespace, namespace);
-  const aliases = Array.isArray(entry.frontMatters?.aliases)
-    ? entry.frontMatters.aliases
-    : [];
+  const aliases = Array.isArray(entry.frontMatters?.aliases) ? entry.frontMatters.aliases : [];
   for (const alias of aliases) {
     const aliasKey = normalizeKey(alias);
     if (aliasKey) {
@@ -84,4 +82,3 @@ export function translateTag(namespace: string, tag: string): string {
   const namespaceTags = tagNameMap.get(canonicalNamespace);
   return namespaceTags?.get(tagKey) ?? tag;
 }
-

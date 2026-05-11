@@ -2,12 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
-import {
-  fetchImageBytes,
-  getChapter,
-  getComicDetail,
-  setEhentaiForumCookie,
-} from "../src/index";
+import { fetchImageBytes, getChapter, getComicDetail, setEhentaiForumCookie } from "../src/index";
 import { httpClient } from "../src/network/client";
 import type { NativeApi } from "../types/runtime-globals";
 
@@ -18,7 +13,7 @@ function fixture(name: string): string {
 describe("site routing behavior", () => {
   beforeEach(() => {
     globalThis.native = {
-      put: vi.fn().mockResolvedValue(99),
+      put: vi.fn<NativeApi["put"]>().mockResolvedValue(99),
     } as unknown as NativeApi;
   });
 
@@ -32,9 +27,7 @@ describe("site routing behavior", () => {
       cookie: "ipb_member_id=1; igneous=expired; ipb_pass_hash=2",
     });
 
-    const savedCookie = String(
-      (result.data as Record<string, unknown>).cookie ?? "",
-    );
+    const savedCookie = String((result.data as Record<string, unknown>).cookie ?? "");
     expect(savedCookie).toContain("ipb_member_id=1");
     expect(savedCookie).toContain("ipb_pass_hash=2");
     expect(savedCookie).not.toContain("igneous=");
@@ -59,12 +52,8 @@ describe("site routing behavior", () => {
       | { headers?: Record<string, string> }
       | undefined;
     expect(calledUrl).toContain("https://e-hentai.org/g/123456/abcdef/");
-    expect(String(calledConfig?.headers?.Cookie ?? "")).toContain(
-      "ipb_member_id=1",
-    );
-    expect(String(calledConfig?.headers?.Cookie ?? "")).not.toContain(
-      "igneous=",
-    );
+    expect(String(calledConfig?.headers?.Cookie ?? "")).toContain("ipb_member_id=1");
+    expect(String(calledConfig?.headers?.Cookie ?? "")).not.toContain("igneous=");
   });
 
   test("test_getComicDetail_ex_empty_eh_then_fallback_to_ex", async () => {
@@ -113,12 +102,8 @@ describe("site routing behavior", () => {
 
     expect(result.nativeBufferId).toBe(99);
     expect(getTextSpy).toHaveBeenCalledTimes(2);
-    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe(
-      "https://e-hentai.org/s/a1/123-1",
-    );
-    expect(String(getTextSpy.mock.calls[1]?.[0] ?? "")).toBe(
-      "https://exhentai.org/s/a1/123-1",
-    );
+    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe("https://e-hentai.org/s/a1/123-1");
+    expect(String(getTextSpy.mock.calls[1]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
     expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined, {
       headers: {
         Cookie: "ipb_member_id=1; igneous=stale",
@@ -183,8 +168,6 @@ describe("site routing behavior", () => {
 
     expect(result.nativeBufferId).toBe(99);
     expect(getTextSpy).toHaveBeenCalledTimes(1);
-    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe(
-      "https://exhentai.org/s/a1/123-1",
-    );
+    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
   });
 });

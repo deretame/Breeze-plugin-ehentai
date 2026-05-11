@@ -24,12 +24,35 @@ function firstSnapshotPageFixture(): string {
   `;
 }
 
+function thumbnailPageFixture(currentPage: number, totalImages = 2000, pageSize = 20): string {
+  const imageStart = (currentPage - 1) * pageSize + 1;
+  const imageEnd = Math.min(totalImages, imageStart + pageSize - 1);
+  const links = Array.from({ length: imageEnd - imageStart + 1 }, (_, index) => {
+    const imageNo = imageStart + index;
+    return `<a href="https://e-hentai.org/s/h${imageNo}/123-${imageNo}"><div data-orghash="abcdefghij${imageNo}"></div></a>`;
+  }).join("");
+  return `
+    <div id="gn">Large Gallery</div>
+    <div id="gdc"><div class="cs">Manga</div></div>
+    <div id="gdd">
+      <table><tbody><tr><td class="gdt1">Length:</td><td class="gdt2">${totalImages} pages</td></tr></tbody></table>
+    </div>
+    <div id="taglist"></div>
+    <div class="gtb"><p class="gpc">Showing ${imageStart} - ${imageEnd} of ${totalImages} images</p></div>
+    <div class="ptds"><a>${currentPage}</a></div>
+    <div class="ptt"><table><tbody><tr><td></td><td><a>100</a></td><td></td></tr></tbody></table></div>
+    <div id="gdt">${links}</div>
+  `;
+}
+
 afterEach(() => {
   vi.restoreAllMocks();
 });
 
 function installInMemoryBridgeCache(): () => void {
-  const host = globalThis as { bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> } };
+  const host = globalThis as {
+    bridge?: { call: (name: string, ...args: unknown[]) => Promise<unknown> };
+  };
   const previousBridge = host.bridge;
   const cacheStore = new Map<string, unknown>();
 
@@ -79,6 +102,14 @@ describe("read snapshot contract", () => {
     expect(result.data.comic.title).toBe("English Gallery Title");
     expect(result.data.chapter.id).toBe("123456/abcdef");
     expect(result.data.chapter.pages).toHaveLength(3);
+    expect(result.data.chapter.name).toBe("Gallery 001-003");
+    expect(result.data.chapter.extern).toMatchObject({
+      chunkIndex: 1,
+      chunkStart: 1,
+      chunkEnd: 3,
+      chunkSize: 200,
+      totalPageCount: 3,
+    });
     expect(result.data.chapter.pages[0]).toMatchObject({
       id: "1",
       name: "1.img",
@@ -94,9 +125,15 @@ describe("read snapshot contract", () => {
     expect(result.data.chapters).toEqual([
       {
         id: "123456/abcdef",
-        name: "Gallery",
+        name: "Gallery 001-003",
         order: 1,
-        extern: {},
+        extern: {
+          chunkIndex: 1,
+          chunkStart: 1,
+          chunkEnd: 3,
+          chunkSize: 200,
+          totalPageCount: 3,
+        },
       },
     ]);
   });
@@ -107,8 +144,17 @@ describe("read snapshot contract", () => {
       const getTextSpy = vi.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(firstSnapshotPageFixture());
 
-      const first = await getReadSnapshot({ comicId: "123456/abcdef", chapterId: "123456/abcdef" });
-      const second = await getReadSnapshot({ comicId: "123456/abcdef", chapterId: "123456/abcdef" });
+      const payload = {
+        comicId: "123456/abcdef",
+        chapterId: "123456/abcdef",
+        extern: {
+          chunkIndex: 1,
+          chunkStart: 1,
+          chunkEnd: 3,
+        },
+      };
+      const first = await getReadSnapshot(payload);
+      const second = await getReadSnapshot(payload);
 
       expect(first.data.chapter.pages).toHaveLength(3);
       expect(second.data.chapter.pages).toHaveLength(3);
@@ -117,5 +163,31 @@ describe("read snapshot contract", () => {
       restoreBridge();
     }
   });
-});
 
+  test("test_getReadSnapshot_chunk_extern_loads_only_requested_200_page_window", async () => {
+    const getTextSpy = vi.spyOn(httpClient, "getText").mockImplementation(async (url) => {
+      const href = String(url);
+      if (!href.includes("?p=")) {
+        return thumbnailPageFixture(1);
+      }
+      const pageNo = Number(new URL(href).searchParams.get("p") ?? "0") + 1;
+      return thumbnailPageFixture(pageNo);
+    });
+
+    const result = await getReadSnapshot({
+      comicId: "123456/abcdef",
+      chapterId: "123456/abcdef",
+      extern: {
+        chunkIndex: 2,
+        chunkStart: 201,
+        chunkEnd: 400,
+      },
+    });
+
+    expect(result.data.chapter.name).toBe("Gallery 0201-0400");
+    expect(result.data.chapter.pages).toHaveLength(200);
+    expect(result.data.chapter.pages[0].id).toBe("201");
+    expect(result.data.chapter.pages[199].id).toBe("400");
+    expect(getTextSpy).toHaveBeenCalledTimes(11);
+  });
+});

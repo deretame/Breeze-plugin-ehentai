@@ -32,8 +32,7 @@ export async function getComicDetailService(
       const detail = parseDetailPage(html, comicId);
       const mapped = mapComicDetail(comicId, detail);
       const ehUnavailable =
-        settings.site === "EX" &&
-        (incomingEhUnavailable || attempt.site === "EX");
+        settings.site === "EX" && (incomingEhUnavailable || attempt.site === "EX");
       mapped.extern = buildRoutingExtern(ehUnavailable);
       mapped.data.normal.comicInfo.extension = {
         ...mapped.data.normal.comicInfo.extension,
@@ -41,9 +40,12 @@ export async function getComicDetailService(
       };
       mapped.data.normal.eps = mapped.data.normal.eps.map((ep) => ({
         ...ep,
+        extern: {
+          ...ep.extern,
+          ...buildRoutingExtern(ehUnavailable),
+        },
         extension: {
           ...ep.extension,
-          ...buildRoutingExtern(ehUnavailable),
         },
       }));
       return mapped;

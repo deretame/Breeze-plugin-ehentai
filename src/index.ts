@@ -21,10 +21,7 @@ import type {
   SearchComicPayload,
 } from "./domain/types";
 import { normalizeError } from "./errors/normalize-error";
-import {
-  getChapterService,
-  getReadPagesService,
-} from "./services/chapter.service";
+import { getChapterService, getReadPagesService } from "./services/chapter.service";
 import { getComicDetailService } from "./services/detail.service";
 import { fetchImageBytesService } from "./services/image.service";
 import { getInfoService } from "./services/info.service";
@@ -97,9 +94,7 @@ function extractCookieNames(cookie: string): string[] {
     .filter(Boolean);
 }
 
-export async function searchComic(
-  payload: SearchComicPayload = {},
-): Promise<SearchResultContract> {
+export async function searchComic(payload: SearchComicPayload = {}): Promise<SearchResultContract> {
   console.log("searchComic payload", payload);
   const payloadMap = asRecord(payload as unknown as Record<string, unknown>);
   try {
@@ -127,9 +122,7 @@ export async function getComicDetail(
   }
 }
 
-export async function getChapter(
-  payload: ChapterPayload = {},
-): Promise<ChapterContentContract> {
+export async function getChapter(payload: ChapterPayload = {}): Promise<ChapterContentContract> {
   try {
     const settings = await readSettings(payload.extern);
     return await getChapterService(payload, settings);
@@ -138,9 +131,7 @@ export async function getChapter(
   }
 }
 
-export async function getReadPages(
-  payload: ChapterPayload = {},
-): Promise<ReadPagesCompatContract> {
+export async function getReadPages(payload: ChapterPayload = {}): Promise<ReadPagesCompatContract> {
   try {
     const settings = await readSettings(payload.extern);
     return await getReadPagesService(payload, settings);
@@ -149,9 +140,8 @@ export async function getReadPages(
   }
 }
 
-export async function getReadSnapshot(
-  payload: ChapterPayload = {},
-): Promise<ReadSnapshotContract> {
+export async function getReadSnapshot(payload: ChapterPayload = {}): Promise<ReadSnapshotContract> {
+  console.log("getReadSnapshot payload", payload);
   try {
     const settings = await readSettings(payload.extern);
     return await getReadSnapshotService(payload, settings);
@@ -164,7 +154,6 @@ export async function fetchImageBytes(
   payload: FetchImageBytesPayload = {},
 ): Promise<FetchImageBytesContract> {
   try {
-    console.log("fetchImageBytes payload extern", payload.extern);
     const settings = await readSettings(payload.extern);
     return await fetchImageBytesService(payload, settings);
   } catch (error) {
@@ -207,7 +196,7 @@ export async function getLatestData(
 ): Promise<Record<string, unknown>> {
   return getFunctionPage({
     ...payload,
-    extern: { ...(payload.extern ?? {}), source: "latest" },
+    extern: { ...payload.extern, source: "latest" },
   });
 }
 
@@ -216,7 +205,7 @@ export async function getPopularData(
 ): Promise<Record<string, unknown>> {
   return getFunctionPage({
     ...payload,
-    extern: { ...(payload.extern ?? {}), source: "popular" },
+    extern: { ...payload.extern, source: "popular" },
   });
 }
 
@@ -225,7 +214,7 @@ export async function getRankingData(
 ): Promise<Record<string, unknown>> {
   return getFunctionPage({
     ...payload,
-    extern: { ...(payload.extern ?? {}), source: "ranking" },
+    extern: { ...payload.extern, source: "ranking" },
   });
 }
 
@@ -240,19 +229,14 @@ export async function getFunctionPage(
     const page = Math.max(1, Number(payload.page ?? extern.page ?? 1) || 1);
     const nextUrlFromExtern = String(extern.nextUrl ?? "").trim();
     const keyword = String(payload.keyword ?? extern.keyword ?? "").trim();
-    const rankType = String(
-      extern.rankType ?? payload.rankType ?? "day",
-    ).trim();
+    const rankType = String(extern.rankType ?? payload.rankType ?? "day").trim();
 
     const settings = await readSettings(extern);
     const requestConfig = buildRequestConfig(settings);
 
     let endpoint = "";
     if (page > 1 && nextUrlFromExtern) {
-      endpoint = buildSearchNavigationEndpoint(
-        nextUrlFromExtern,
-        settings.site,
-      );
+      endpoint = buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site);
     } else if (source === "ranking") {
       const tl = resolveRankTl(rankType);
       endpoint = buildSearchNavigationEndpoint(
@@ -260,10 +244,7 @@ export async function getFunctionPage(
         settings.site,
       );
     } else {
-      endpoint = buildSearchNavigationEndpoint(
-        resolveFunctionPageBySource(source),
-        settings.site,
-      );
+      endpoint = buildSearchNavigationEndpoint(resolveFunctionPageBySource(source), settings.site);
       if (keyword) {
         const url = new URL(endpoint);
         url.searchParams.set("f_search", keyword);
@@ -276,10 +257,7 @@ export async function getFunctionPage(
       : await httpClient.getText(endpoint);
 
     const parsed = parseSearchPage(html);
-    const mapped = mapSearchResult(
-      { page, extern: { ...extern, source } },
-      parsed,
-    );
+    const mapped = mapSearchResult({ page, extern: { ...extern, source } }, parsed);
 
     return {
       source: PLUGIN_SOURCE,
@@ -309,9 +287,7 @@ export async function getFunctionPage(
   }
 }
 
-export async function getRankingFilterBundle(): Promise<
-  Record<string, unknown>
-> {
+export async function getRankingFilterBundle(): Promise<Record<string, unknown>> {
   return {
     source: PLUGIN_SOURCE,
     scheme: {
@@ -360,9 +336,7 @@ export async function getSettingsBundle(): Promise<SettingsBundleContract> {
   return getSettingsBundleService();
 }
 
-export async function getCapabilitiesBundle(): Promise<
-  Record<string, unknown>
-> {
+export async function getCapabilitiesBundle(): Promise<Record<string, unknown>> {
   return {
     source: PLUGIN_SOURCE,
     scheme: {
@@ -382,10 +356,6 @@ export async function getAdvancedSearchScheme(
 ): Promise<Record<string, unknown>> {
   const extern = asRecord(payload.extern);
 
-  const numOr = (value: unknown, fallback: number) => {
-    const n = Number(value);
-    return Number.isFinite(n) ? n : fallback;
-  };
   const boolOr = (value: unknown, fallback: boolean) => {
     if (typeof value === "boolean") return value;
     if (typeof value === "string") {
@@ -401,10 +371,7 @@ export async function getAdvancedSearchScheme(
     }
     if (raw && typeof raw === "object") {
       return Object.entries(raw as Record<string, unknown>)
-        .filter(
-          ([, checked]) =>
-            checked === true || String(checked).toLowerCase() === "true",
-        )
+        .filter(([, checked]) => checked === true || String(checked).toLowerCase() === "true")
         .map(([key]) => String(key).trim())
         .filter(Boolean);
     }
@@ -474,7 +441,7 @@ export async function getAdvancedSearchScheme(
 }
 
 export async function startEhentaiWebLogin(
-  payload: Record<string, unknown> = {},
+  _payload: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> {
   return {
     source: PLUGIN_SOURCE,
@@ -502,10 +469,7 @@ export async function setEhentaiForumCookie(
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
   const rawCookie = extractCookieFromPayload(payloadMap);
-  const sanitizedIncomingCookie = removeCookieNames(rawCookie, [
-    "igneous",
-    "cf_clearance",
-  ]);
+  const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["igneous", "cf_clearance"]);
   const incomingCookieNames = extractCookieNames(String(rawCookie ?? ""));
   console.log(
     "[EH] setEhentaiForumCookie incoming",
@@ -547,9 +511,7 @@ export async function setEhentaiManualCookie(
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
   const rawCookie = extractCookieFromPayload(payloadMap);
-  const sanitizedIncomingCookie = removeCookieNames(rawCookie, [
-    "cf_clearance",
-  ]);
+  const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["cf_clearance"]);
   const sanitizedCookie = await saveForumCookie(sanitizedIncomingCookie);
   const cookieCount = countCookiePairs(sanitizedCookie);
   const persistedCookieNames = extractCookieNames(sanitizedCookie);
@@ -570,9 +532,7 @@ export async function setEhentaiManualCookie(
       valuesPatch: {
         forumCookie: sanitizedCookie,
       },
-      message: cookieCount
-        ? `已保存 ${cookieCount} 条 cookie`
-        : "cookie 已清空",
+      message: cookieCount ? `已保存 ${cookieCount} 条 cookie` : "cookie 已清空",
     },
   };
 }

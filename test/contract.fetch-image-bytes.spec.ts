@@ -7,7 +7,7 @@ import type { NativeApi } from "../types/runtime-globals";
 describe("fetchImageBytes contract", () => {
   beforeEach(() => {
     globalThis.native = {
-      put: vi.fn().mockResolvedValue(77),
+      put: vi.fn<NativeApi["put"]>().mockResolvedValue(77),
     } as unknown as NativeApi;
   });
 

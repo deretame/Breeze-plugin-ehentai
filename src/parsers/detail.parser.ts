@@ -53,10 +53,13 @@ function parseTagsByNamespace($: cheerio.CheerioAPI): Record<string, string[]> {
     pushTag(namespace, text || fallbackTag);
   });
 
-  return Array.from(tagsByNamespaceSet.entries()).reduce<Record<string, string[]>>((acc, [namespace, tags]) => {
-    acc[namespace] = Array.from(tags);
-    return acc;
-  }, {});
+  return Array.from(tagsByNamespaceSet.entries()).reduce<Record<string, string[]>>(
+    (acc, [namespace, tags]) => {
+      acc[namespace] = Array.from(tags);
+      return acc;
+    },
+    {},
+  );
 }
 
 export function parseDetailPage(html: string, comicId: string): DetailParsed {
@@ -97,7 +100,10 @@ export function parseDetailPage(html: string, comicId: string): DetailParsed {
     .trim();
   const ratingAverageFromHtml = /Average:\s*([0-9]+(?:\.[0-9]+)?)/i.exec(html)?.[1] ?? "";
   const ratingAverage = ratingAverageFromDom || ratingAverageFromHtml;
-  const ratingCount = toInt(normalizeWhitespace(String($("#rating_count").first().text() ?? "")), 0);
+  const ratingCount = toInt(
+    normalizeWhitespace(String($("#rating_count").first().text() ?? "")),
+    0,
+  );
   const language = tableMap.language || "";
 
   const title = englishTitle || japaneseTitle;

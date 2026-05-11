@@ -1,5 +1,11 @@
 import axios from "axios";
-import { contractError, networkError, parseError, PluginError, upstreamBlockedError } from "./plugin-error";
+import {
+  contractError,
+  networkError,
+  parseError,
+  PluginError,
+  upstreamBlockedError,
+} from "./plugin-error";
 
 const BLOCKED_MARKERS = ["sad panda", "temporarily banned", "ip address has been", "exhentai"];
 

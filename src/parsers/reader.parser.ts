@@ -9,10 +9,7 @@ const MPV_HREF_REGEX = /(https?:\/\/(?:e-hentai|exhentai)\.org)\/mpv\/(\d+)\/[^/
 const EH_509_IMAGE_PATH = "/g/509.gif";
 const EX_509_IMAGE_PATH = "/img/509.gif";
 
-const LIMIT_MARKERS = [
-  "you have reached the image limit",
-  "you have exceeded your image",
-];
+const LIMIT_MARKERS = ["you have reached the image limit", "you have exceeded your image"];
 
 const RETRYABLE_MARKERS = [
   "invalid token",
@@ -65,7 +62,9 @@ export function parseThumbnailRangePage(html: string): ReaderRangeParsed {
     .map((index, node) => ({
       index,
       href: String($(node).attr("href") ?? ""),
-      originImageHash: String($(node).find("div[data-orghash]").first().attr("data-orghash") ?? "").trim() || undefined,
+      originImageHash:
+        String($(node).find("div[data-orghash]").first().attr("data-orghash") ?? "").trim() ||
+        undefined,
     }))
     .get()
     .filter((item) => item.href.includes("/s/") || item.href.includes("/mpv/"));
@@ -105,7 +104,10 @@ export function parseImagePage(href: string, html: string): ReaderImageParsed {
   }
 
   const normalizedImageUrl = imageUrl.toLowerCase();
-  if (normalizedImageUrl.includes(EH_509_IMAGE_PATH) || normalizedImageUrl.includes(EX_509_IMAGE_PATH)) {
+  if (
+    normalizedImageUrl.includes(EH_509_IMAGE_PATH) ||
+    normalizedImageUrl.includes(EX_509_IMAGE_PATH)
+  ) {
     throw upstreamBlockedError("image quota exceeded");
   }
 

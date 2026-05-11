@@ -1,22 +1,25 @@
-import { MAX_CONCURRENT_REQUESTS, PLUGIN_SOURCE } from "../domain/constants";
+import { PLUGIN_SOURCE } from "../domain/constants";
 import type { ReadSnapshotContract } from "../domain/contracts";
-import type {
-  ChapterPayload,
-  PluginSettings,
-  ReaderRangeParsed,
-} from "../domain/types";
+import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
-import { httpClient, mapWithConcurrency } from "../network/client";
+import { httpClient } from "../network/client";
 import { buildDetailEndpoint } from "../network/endpoints";
 import { parseDetailPage } from "../parsers/detail.parser";
-import {
-  parseThumbnailRangePage,
-  toImagePageHref,
-} from "../parsers/reader.parser";
+import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.parser";
 import { cache } from "../tools";
+import { unwrapBridgeValue } from "../utils/bridge-cache";
+import {
+  buildGalleryChunkExtern,
+  buildGalleryChunks,
+  formatGalleryChunkName,
+  getGalleryChunkSize,
+  resolveGalleryChunkFromExtern,
+  type GalleryChunk,
+} from "../utils/chunk";
 import { buildDeferredImageUrl } from "../utils/deferred-image";
 import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl } from "../utils/url";
+import { resolveThumbnailRangesForChunk } from "./gallery-range.service";
 import {
   buildNonSearchSiteAttempts,
   buildRoutingExtern,
@@ -49,48 +52,11 @@ type ReadSnapshotCacheEnvelope = {
 function buildReadSnapshotCacheKey(
   comicId: string,
   site: PluginSettings["site"],
+  chunk: GalleryChunk,
 ): string {
-  return [READ_SNAPSHOT_CACHE_KEY_PREFIX, site, comicId].join(":");
-}
-
-function unwrapBridgeValue(raw: unknown, depth = 0): unknown {
-  if (depth > 8) {
-    return raw;
-  }
-
-  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
-    const map = raw as Record<string, unknown>;
-    if (map.ok === true && "value" in map) {
-      return unwrapBridgeValue(map.value, depth + 1);
-    }
-    return raw;
-  }
-
-  if (typeof raw === "string") {
-    const text = raw.trim();
-    if (!text) {
-      return "";
-    }
-    try {
-      const parsed = JSON.parse(text);
-      if (
-        parsed &&
-        typeof parsed === "object" &&
-        !Array.isArray(parsed) &&
-        (parsed as Record<string, unknown>).ok === true &&
-        "value" in (parsed as Record<string, unknown>)
-      ) {
-        return unwrapBridgeValue(
-          (parsed as Record<string, unknown>).value,
-          depth + 1,
-        );
-      }
-    } catch {
-      // keep raw text as-is
-    }
-  }
-
-  return raw;
+  return [READ_SNAPSHOT_CACHE_KEY_PREFIX, site, comicId, `chunk=${chunk.start}-${chunk.end}`].join(
+    ":",
+  );
 }
 
 function normalizeSnapshotPage(value: unknown): SnapshotPage | null {
@@ -112,9 +78,7 @@ function normalizeSnapshotPage(value: unknown): SnapshotPage | null {
   return { id, name, path, url, extern };
 }
 
-function parseReadSnapshotCacheEnvelope(
-  raw: unknown,
-): ReadSnapshotCacheEnvelope | null {
+function parseReadSnapshotCacheEnvelope(raw: unknown): ReadSnapshotCacheEnvelope | null {
   let data: unknown = raw;
   if (typeof data === "string") {
     const text = data.trim();
@@ -155,9 +119,7 @@ function parseReadSnapshotCacheEnvelope(
   };
 }
 
-async function readCachedReadSnapshot(
-  cacheKey: string,
-): Promise<ResolvedReadSnapshot | null> {
+async function readCachedReadSnapshot(cacheKey: string): Promise<ResolvedReadSnapshot | null> {
   try {
     const raw = await cache.get(cacheKey, "");
     const decoded = unwrapBridgeValue(raw);
@@ -195,13 +157,8 @@ async function writeCachedReadSnapshot(
   }
 }
 
-async function getText(
-  url: string,
-  requestConfig?: RequestConfig,
-): Promise<string> {
-  return requestConfig
-    ? httpClient.getText(url, requestConfig)
-    : httpClient.getText(url);
+async function getText(url: string, requestConfig?: RequestConfig): Promise<string> {
+  return requestConfig ? httpClient.getText(url, requestConfig) : httpClient.getText(url);
 }
 
 function readChapterOrder(extern: Record<string, unknown>): number {
@@ -225,13 +182,15 @@ function appendRangeEntries(
   >,
   range: ReaderRangeParsed,
   routingExtern: Record<string, unknown>,
+  chunk: GalleryChunk,
 ): void {
   for (let offset = 0; offset < range.thumbnails.length; offset += 1) {
     const thumbnail = range.thumbnails[offset];
     const imageIndex = range.imageNoFrom + offset + 1;
-    const imagePageHref = ensureAllowedHostUrl(
-      toImagePageHref(thumbnail, imageIndex),
-    );
+    if (imageIndex < chunk.start || imageIndex > chunk.end) {
+      continue;
+    }
+    const imagePageHref = ensureAllowedHostUrl(toImagePageHref(thumbnail, imageIndex));
     // In deferred mode we don't know the final image extension yet.
     // Use a neutral suffix to avoid pretending it's jpg/webp.
     const deferredFileName = `${imageIndex}.img`;
@@ -258,6 +217,7 @@ export async function getReadSnapshotService(
   const chapterOrder = readChapterOrder(extern);
   const incomingEhUnavailable = readEhUnavailableExtern(payload.extern);
   const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
+  const chunkSize = getGalleryChunkSize();
   let title = comicId;
   let pages: Array<{
     id: string;
@@ -266,22 +226,29 @@ export async function getReadSnapshotService(
     url: string;
     extern: Record<string, unknown>;
   }> = [];
+  let resolvedChunk: GalleryChunk = {
+    index: 1,
+    start: 1,
+    end: chunkSize,
+  };
+  let resolvedTotalPageCount = chunkSize;
   let lastError: unknown;
   let resolvedEhUnavailable = incomingEhUnavailable;
 
   for (const attempt of attempts) {
     try {
       const ehUnavailable =
-        settings.site === "EX" &&
-        (incomingEhUnavailable || attempt.site === "EX");
+        settings.site === "EX" && (incomingEhUnavailable || attempt.site === "EX");
       const routingExtern = buildRoutingExtern(ehUnavailable);
-      const cacheKey = buildReadSnapshotCacheKey(comicId, attempt.site);
-      const cached = await readCachedReadSnapshot(cacheKey);
-      if (cached) {
-        title = cached.title;
-        pages = cached.pages;
+      const requestedChunk = resolveGalleryChunkFromExtern(extern, undefined, chunkSize);
+      const earlyCacheKey = buildReadSnapshotCacheKey(comicId, attempt.site, requestedChunk);
+      const earlyCached = await readCachedReadSnapshot(earlyCacheKey);
+      if (earlyCached) {
+        title = earlyCached.title;
+        pages = earlyCached.pages;
+        resolvedChunk = requestedChunk;
         resolvedEhUnavailable = ehUnavailable;
-        console.log("[EH] read snapshot cache hit", cacheKey);
+        console.log("[EH] read snapshot cache hit", earlyCacheKey);
         break;
       }
       const firstDetailUrl = buildDetailEndpoint(comicId, attempt.site, 0);
@@ -290,14 +257,18 @@ export async function getReadSnapshotService(
         continue;
       }
 
+      let parsedDetailPageCount: number | undefined;
       try {
         const detail = parseDetailPage(firstHtml, comicId);
         title = detail.title || comicId;
+        parsedDetailPageCount = detail.pageCount;
       } catch {
         // Read snapshot should still work even if detail parse fails.
       }
 
       const firstRange = parseThumbnailRangePage(firstHtml);
+      resolvedTotalPageCount = parsedDetailPageCount ?? firstRange.imageCount;
+      resolvedChunk = resolveGalleryChunkFromExtern(extern, resolvedTotalPageCount, chunkSize);
       const pageMap = new Map<
         number,
         {
@@ -308,31 +279,26 @@ export async function getReadSnapshotService(
           extern: Record<string, unknown>;
         }
       >();
-      appendRangeEntries(pageMap, firstRange, routingExtern);
+      const chunkExtern = buildGalleryChunkExtern(resolvedChunk, resolvedTotalPageCount, chunkSize);
+      const cacheKey = buildReadSnapshotCacheKey(comicId, attempt.site, resolvedChunk);
+      const cached = await readCachedReadSnapshot(cacheKey);
+      if (cached) {
+        title = cached.title;
+        pages = cached.pages;
+        resolvedEhUnavailable = ehUnavailable;
+        console.log("[EH] read snapshot cache hit", cacheKey);
+        break;
+      }
 
-      const remainingThumbPages = Array.from(
-        { length: Math.max(0, firstRange.pageCount - 1) },
-        (_, index) => index + 2,
+      const parsedRanges = await resolveThumbnailRangesForChunk(
+        comicId,
+        attempt.site,
+        firstRange,
+        resolvedChunk,
+        (url) => getText(url, attempt.requestConfig),
       );
-
-      if (remainingThumbPages.length) {
-        const parsedRanges = await mapWithConcurrency(
-          remainingThumbPages,
-          async (thumbPage) => {
-            const detailUrl = buildDetailEndpoint(
-              comicId,
-              attempt.site,
-              thumbPage - 1,
-            );
-            const html = await getText(detailUrl, attempt.requestConfig);
-            return parseThumbnailRangePage(html);
-          },
-          MAX_CONCURRENT_REQUESTS,
-        );
-
-        for (const range of parsedRanges) {
-          appendRangeEntries(pageMap, range, routingExtern);
-        }
+      for (const range of parsedRanges) {
+        appendRangeEntries(pageMap, range, { ...routingExtern, ...chunkExtern }, resolvedChunk);
       }
 
       pages = Array.from(pageMap.entries())
@@ -355,19 +321,33 @@ export async function getReadSnapshotService(
     throw parseError("no readable pages in read snapshot");
   }
 
+  const routingExtern = buildRoutingExtern(resolvedEhUnavailable);
+  const chunkExtern = buildGalleryChunkExtern(resolvedChunk, resolvedTotalPageCount, chunkSize);
+  const chapterExtern = {
+    ...chunkExtern,
+    ...routingExtern,
+  };
+  const chunkChapters = buildGalleryChunks(resolvedTotalPageCount, chunkSize).map((chunk) => ({
+    id: chapterId,
+    name: formatGalleryChunkName(chunk, resolvedTotalPageCount),
+    order: chapterOrder,
+    extern: {
+      ...buildGalleryChunkExtern(chunk, resolvedTotalPageCount, chunkSize),
+      ...routingExtern,
+    },
+  }));
   const chapterRef = {
     id: chapterId,
-    name: "Gallery",
+    name: formatGalleryChunkName(resolvedChunk, resolvedTotalPageCount),
     order: chapterOrder,
-    extern: buildRoutingExtern(resolvedEhUnavailable),
+    extern: chapterExtern,
   };
-  const routingExtern = buildRoutingExtern(resolvedEhUnavailable);
 
   return {
     source: PLUGIN_SOURCE,
     extern: {
       ...extern,
-      ...routingExtern,
+      ...chapterExtern,
     },
     data: {
       comic: {
@@ -381,7 +361,7 @@ export async function getReadSnapshotService(
         pages,
         extern: chapterRef.extern,
       },
-      chapters: [chapterRef],
+      chapters: chunkChapters,
     },
   };
 }
