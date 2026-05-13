@@ -1,120 +1,81 @@
 import type { ChapterContentContract } from "../domain/contracts";
 import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
-import { parseError, PluginError } from "../errors/plugin-error";
-import {
-  mapChapterContent,
-  type ChapterDocInput,
-} from "../mappers/chapter.mapper";
-import { httpClient, mapWithConcurrency } from "../network/client";
-import { buildDetailEndpoint, buildImagePageEndpoint } from "../network/endpoints";
-import {
-  extractReloadKeyFromImagePage,
-  isRetryableImagePageHtml,
-  parseImagePage,
-  parseThumbnailRangePage,
-  toImagePageHref,
-} from "../parsers/reader.parser";
+import { parseError } from "../errors/plugin-error";
+import { mapChapterContent } from "../mappers/chapter.mapper";
+import { httpClient } from "../network/client";
+import { buildDetailEndpoint } from "../network/endpoints";
+import { parseDetailPage } from "../parsers/detail.parser";
+import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.parser";
 import { cache } from "../tools";
 import { unwrapBridgeValue } from "../utils/bridge-cache";
-import { normalizePage, requiredString } from "../utils/guards";
-import { ensureAllowedHostUrl, ensureAllowedMediaUrl } from "../utils/url";
+import { buildDeferredImageUrl } from "../utils/deferred-image";
+import { requiredString } from "../utils/guards";
+import { ensureAllowedHostUrl } from "../utils/url";
+import {
+  buildGalleryChunkId,
+  buildGalleryChunkExtern,
+  getGalleryChunkSize,
+  resolveGalleryChunkFromExtern,
+  type GalleryChunk,
+} from "../utils/chunk";
+import { resolveThumbnailRangesForChunk } from "./gallery-range.service";
 import {
   buildNonSearchSiteAttempts,
   buildRoutingExtern,
   readEhUnavailableExtern,
   type RequestConfig,
 } from "./site-routing.service";
-import { buildDeferredImageUrl } from "../utils/deferred-image";
-import {
-  getGalleryChunkSize,
-  resolveGalleryChunkFromExtern,
-  type GalleryChunk,
-} from "../utils/chunk";
-import { resolveThumbnailRangesForChunk } from "./gallery-range.service";
 
-const CHAPTER_DOC_CACHE_TTL_MS = 30 * 60 * 1000;
-const CHAPTER_DOC_CACHE_KEY_PREFIX = "ehentai:chapter-docs:v1";
+const CHAPTER_CACHE_TTL_MS = 30 * 60 * 1000;
+const CHAPTER_CACHE_KEY_PREFIX = "ehentai:chapter:v2";
 
-type ResolvedChapterDocs = {
-  items: ChapterDocInput[];
-  pageCount: number;
-  thumbnailPageCount: number;
-  mergedAllThumbnailPages: boolean;
+type SnapshotPage = {
+  id: string;
+  name: string;
+  path: string;
+  url: string;
+  extern: Record<string, unknown>;
 };
 
-type ChapterDocCacheEnvelope = {
+type ResolvedChapterSnapshot = {
+  title: string;
+  pages: SnapshotPage[];
+};
+
+type ChapterCacheEnvelope = {
   version: 1;
   expiresAt: number;
-  value: ResolvedChapterDocs;
+  value: ResolvedChapterSnapshot;
 };
 
-function buildChapterDocCacheKey(
+function buildChapterCacheKey(
   comicId: string,
-  page: number,
   site: PluginSettings["site"],
-  mergeAllThumbnailPagesOnFirstPage: boolean,
   chunk: GalleryChunk,
 ): string {
-  return [
-    CHAPTER_DOC_CACHE_KEY_PREFIX,
-    site,
-    comicId,
-    `page=${page}`,
-    `mergeAll=${mergeAllThumbnailPagesOnFirstPage ? "1" : "0"}`,
-    `chunk=${chunk.start}-${chunk.end}`,
-  ].join(":");
+  return [CHAPTER_CACHE_KEY_PREFIX, site, comicId, `chunk=${chunk.start}-${chunk.end}`].join(":");
 }
 
-function isValidChapterDocInput(value: unknown): value is ChapterDocInput {
-  if (!value || typeof value !== "object") {
-    return false;
-  }
-  const map = value as Record<string, unknown>;
-  const index = Number(map.index);
-  const href = String(map.href ?? "").trim();
-  const imageUrl = String(map.imageUrl ?? "").trim();
-  const fileName = map.fileName;
-  const reloadKey = map.reloadKey;
-  if (!Number.isInteger(index) || index <= 0 || !href || !imageUrl) {
-    return false;
-  }
-  if (fileName !== undefined && fileName !== null && typeof fileName !== "string") {
-    return false;
-  }
-  if (reloadKey !== undefined && reloadKey !== null && typeof reloadKey !== "string") {
-    return false;
-  }
-  return true;
-}
-
-function normalizeCachedChapterDocs(value: unknown): ResolvedChapterDocs | null {
+function normalizeSnapshotPage(value: unknown): SnapshotPage | null {
   if (!value || typeof value !== "object") {
     return null;
   }
-
   const map = value as Record<string, unknown>;
-  const itemsRaw = Array.isArray(map.items) ? map.items : [];
-  const items = itemsRaw.filter(isValidChapterDocInput);
-  const pageCount = Number(map.pageCount);
-  const thumbnailPageCount = Number(map.thumbnailPageCount);
-  const mergedAllThumbnailPages = Boolean(map.mergedAllThumbnailPages);
-
-  if (!items.length || !Number.isInteger(pageCount) || pageCount <= 0) {
+  const id = String(map.id ?? "").trim();
+  const name = String(map.name ?? "").trim();
+  const path = String(map.path ?? "").trim();
+  const url = String(map.url ?? "").trim();
+  const extern =
+    map.extern && typeof map.extern === "object" && !Array.isArray(map.extern)
+      ? (map.extern as Record<string, unknown>)
+      : {};
+  if (!id || !name || !path || !url) {
     return null;
   }
-  if (!Number.isInteger(thumbnailPageCount) || thumbnailPageCount <= 0) {
-    return null;
-  }
-
-  return {
-    items,
-    pageCount,
-    thumbnailPageCount,
-    mergedAllThumbnailPages,
-  };
+  return { id, name, path, url, extern };
 }
 
-function parseChapterDocCacheEnvelope(raw: unknown): ChapterDocCacheEnvelope | null {
+function parseChapterCacheEnvelope(raw: unknown): ChapterCacheEnvelope | null {
   let data: unknown = raw;
   if (typeof data === "string") {
     const text = data.trim();
@@ -128,28 +89,38 @@ function parseChapterDocCacheEnvelope(raw: unknown): ChapterDocCacheEnvelope | n
     }
   }
 
-  if (!data || typeof data !== "object") {
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
     return null;
   }
+
   const map = data as Record<string, unknown>;
   const version = Number(map.version);
   const expiresAt = Number(map.expiresAt);
-  const value = normalizeCachedChapterDocs(map.value);
-  if (version !== 1 || !Number.isFinite(expiresAt) || !value) {
+  const value = map.value as Record<string, unknown> | undefined;
+  const title = String(value?.title ?? "").trim();
+  const pagesRaw = Array.isArray(value?.pages) ? value.pages : [];
+  const pages = pagesRaw
+    .map((page) => normalizeSnapshotPage(page))
+    .filter((page): page is SnapshotPage => Boolean(page));
+  if (version !== 1 || !Number.isFinite(expiresAt) || !title || !pages.length) {
     return null;
   }
+
   return {
     version: 1,
     expiresAt,
-    value,
+    value: {
+      title,
+      pages,
+    },
   };
 }
 
-async function readCachedChapterDocs(cacheKey: string): Promise<ResolvedChapterDocs | null> {
+async function readCachedChapterSnapshot(cacheKey: string): Promise<ResolvedChapterSnapshot | null> {
   try {
     const raw = await cache.get(cacheKey, "");
     const decoded = unwrapBridgeValue(raw);
-    const envelope = parseChapterDocCacheEnvelope(decoded);
+    const envelope = parseChapterCacheEnvelope(decoded);
     if (!envelope) {
       return null;
     }
@@ -168,10 +139,13 @@ async function readCachedChapterDocs(cacheKey: string): Promise<ResolvedChapterD
   }
 }
 
-async function writeCachedChapterDocs(cacheKey: string, value: ResolvedChapterDocs): Promise<void> {
-  const envelope: ChapterDocCacheEnvelope = {
+async function writeCachedChapterSnapshot(
+  cacheKey: string,
+  value: ResolvedChapterSnapshot,
+): Promise<void> {
+  const envelope: ChapterCacheEnvelope = {
     version: 1,
-    expiresAt: Date.now() + CHAPTER_DOC_CACHE_TTL_MS,
+    expiresAt: Date.now() + CHAPTER_CACHE_TTL_MS,
     value,
   };
   try {
@@ -188,174 +162,39 @@ async function getText(url: string, requestConfig?: RequestConfig): Promise<stri
   return requestConfig ? httpClient.getText(url, requestConfig) : httpClient.getText(url);
 }
 
-async function resolveChapterDoc(
-  imagePageHref: string,
-  imageIndex: number,
-  requestConfig: RequestConfig,
-): Promise<ChapterDocInput> {
-  const safeImagePageHref = ensureAllowedHostUrl(imagePageHref);
-  const imagePageHtml = await getText(buildImagePageEndpoint(safeImagePageHref), requestConfig);
-
-  try {
-    const parsed = parseImagePage(safeImagePageHref, imagePageHtml);
-    return {
-      index: imageIndex,
-      href: safeImagePageHref,
-      imageUrl: ensureAllowedMediaUrl(parsed.imageUrl),
-      reloadKey: parsed.reloadKey,
-    };
-  } catch (error) {
-    if (error instanceof PluginError && error.code === "UPSTREAM_BLOCKED") {
-      throw error;
-    }
-
-    const reloadKey = extractReloadKeyFromImagePage(imagePageHtml);
-    if (!reloadKey || !isRetryableImagePageHtml(imagePageHtml)) {
-      throw error;
-    }
-
-    const retriedHtml = await getText(
-      buildImagePageEndpoint(safeImagePageHref, reloadKey),
-      requestConfig,
-    );
-    const retried = parseImagePage(safeImagePageHref, retriedHtml);
-
-    return {
-      index: imageIndex,
-      href: safeImagePageHref,
-      imageUrl: ensureAllowedMediaUrl(retried.imageUrl),
-      reloadKey: retried.reloadKey,
-    };
-  }
-}
-
-function toDeferredChapterDocInput(item: ChapterDocInput): ChapterDocInput {
-  const deferredFileName = `${item.index}.img`;
-  return {
-    index: item.index,
-    href: item.href,
-    imageUrl: buildDeferredImageUrl(item.href),
-    reloadKey: item.reloadKey,
-    fileName: deferredFileName,
-  };
-}
-
-function buildRangeTargets(
-  ranges: ReaderRangeParsed[],
-): Array<{ imagePageHref: string; imageIndex: number }> {
-  return ranges.flatMap((range) =>
-    range.thumbnails.map((thumbnail, offset) => {
-      const imageIndex = range.imageNoFrom + offset + 1;
-      return {
-        imagePageHref: toImagePageHref(thumbnail, imageIndex),
-        imageIndex,
-      };
-    }),
-  );
-}
-
-async function resolveThumbnailRanges(
-  comicId: string,
-  firstRange: ReaderRangeParsed,
-  site: PluginSettings["site"],
-  requestConfig: RequestConfig,
+function appendRangeEntries(
+  pageMap: Map<number, SnapshotPage>,
+  range: ReaderRangeParsed,
+  routingExtern: Record<string, unknown>,
   chunk: GalleryChunk,
-): Promise<ReaderRangeParsed[]> {
-  return resolveThumbnailRangesForChunk(comicId, site, firstRange, chunk, (url) =>
-    getText(url, requestConfig),
-  );
-}
-
-async function resolveChapterDocsFromRanges(
-  ranges: ReaderRangeParsed[],
-  requestConfig: RequestConfig,
-): Promise<ChapterDocInput[]> {
-  const targets = buildRangeTargets(ranges);
-  const skippedErrors: unknown[] = [];
-
-  const settled = await mapWithConcurrency(targets, async (target) => {
-    try {
-      return await resolveChapterDoc(target.imagePageHref, target.imageIndex, requestConfig);
-    } catch (error) {
-      if (error instanceof PluginError && error.code === "UPSTREAM_BLOCKED") {
-        throw error;
-      }
-      skippedErrors.push(error);
-      return null;
-    }
-  });
-
-  const uniqueByIndex = new Map<number, ChapterDocInput>();
-  for (const item of settled) {
-    if (!item?.imageUrl || uniqueByIndex.has(item.index)) {
+): void {
+  for (let offset = 0; offset < range.thumbnails.length; offset += 1) {
+    const thumbnail = range.thumbnails[offset];
+    const imageIndex = range.imageNoFrom + offset + 1;
+    if (imageIndex < chunk.start || imageIndex > chunk.end) {
       continue;
     }
-    uniqueByIndex.set(item.index, item);
+    const imagePageHref = ensureAllowedHostUrl(toImagePageHref(thumbnail, imageIndex));
+    const deferredFileName = `${imageIndex}.img`;
+    pageMap.set(imageIndex, {
+      id: String(imageIndex),
+      name: deferredFileName,
+      path: deferredFileName,
+      url: buildDeferredImageUrl(imagePageHref),
+      extern: {
+        href: imagePageHref,
+        ...routingExtern,
+      },
+    });
   }
-
-  const valid = Array.from(uniqueByIndex.values()).sort((a, b) => a.index - b.index);
-  if (!valid.length) {
-    throw parseError("no readable page images in chapter", skippedErrors[0]);
-  }
-  return valid;
 }
 
-async function resolveChapterDocs(
-  comicId: string,
-  page: number,
-  extern: Record<string, unknown> | undefined,
-  site: PluginSettings["site"],
-  requestConfig: RequestConfig,
-  mergeAllThumbnailPagesOnFirstPage = false,
-): Promise<ResolvedChapterDocs> {
-  const chunkSize = getGalleryChunkSize();
-  const requestedChunk = resolveGalleryChunkFromExtern(extern ?? {}, undefined, chunkSize);
-  const cacheKey = buildChapterDocCacheKey(
-    comicId,
-    page,
-    site,
-    mergeAllThumbnailPagesOnFirstPage,
-    requestedChunk,
-  );
-  const cached = await readCachedChapterDocs(cacheKey);
-  if (cached) {
-    return cached;
+function readChapterOrder(extern: Record<string, unknown>, chunk: GalleryChunk): number {
+  const rawOrder = Number(extern.order ?? chunk.index);
+  if (!Number.isFinite(rawOrder)) {
+    return chunk.index;
   }
-
-  const html = await getText(buildDetailEndpoint(comicId, site, page - 1), requestConfig);
-  if (!html.trim()) {
-    throw parseError("empty chapter html");
-  }
-  const firstRange = parseThumbnailRangePage(html);
-  const resolvedChunk = resolveGalleryChunkFromExtern(
-    extern ?? {},
-    firstRange.imageCount,
-    chunkSize,
-  );
-  const mergedAllThumbnailPages =
-    mergeAllThumbnailPagesOnFirstPage && page === 1 && firstRange.pageCount > 1;
-
-  const ranges = mergedAllThumbnailPages
-    ? await resolveThumbnailRanges(comicId, firstRange, site, requestConfig, resolvedChunk)
-    : [firstRange];
-  const valid = (await resolveChapterDocsFromRanges(ranges, requestConfig)).filter(
-    (item) => item.index >= resolvedChunk.start && item.index <= resolvedChunk.end,
-  );
-
-  if (!valid.length) {
-    throw parseError("no readable page images in chapter");
-  }
-
-  const resolved: ResolvedChapterDocs = {
-    items: valid,
-    // When merging all thumbnail pages into one payload, report one logical page
-    // so callers do not keep requesting page=2 and downloading duplicates.
-    pageCount: mergedAllThumbnailPages ? 1 : firstRange.pageCount,
-    thumbnailPageCount: firstRange.pageCount,
-    mergedAllThumbnailPages,
-  };
-  await writeCachedChapterDocs(cacheKey, resolved);
-  return resolved;
+  return Math.max(1, Math.trunc(rawOrder));
 }
 
 export async function getChapterService(
@@ -363,56 +202,112 @@ export async function getChapterService(
   settings: PluginSettings,
 ): Promise<ChapterContentContract> {
   const comicId = requiredString(payload.comicId, "comicId");
-  const chapterId = String(payload.chapterId ?? comicId);
-  const page = normalizePage(payload.page, 1);
+  const extern = payload.extern ?? {};
   const incomingEhUnavailable = readEhUnavailableExtern(payload.extern);
   const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
+  const chunkSize = getGalleryChunkSize();
+  let title = comicId;
+  let pages: SnapshotPage[] = [];
+  let resolvedChunk: GalleryChunk = {
+    index: 1,
+    start: 1,
+    end: chunkSize,
+  };
+  let resolvedTotalPageCount = chunkSize;
   let lastError: unknown;
+  let resolvedEhUnavailable = incomingEhUnavailable;
 
   for (const attempt of attempts) {
     try {
-      const resolved = await resolveChapterDocs(
-        comicId,
-        page,
-        payload.extern,
-        attempt.site,
-        attempt.requestConfig,
-        true,
-      );
-      const mapped = mapChapterContent(
-        comicId,
-        chapterId,
-        page,
-        resolved.pageCount,
-        resolved.items.map(toDeferredChapterDocInput),
-      );
-      if (resolved.mergedAllThumbnailPages) {
-        mapped.extern = {
-          ...mapped.extern,
-          thumbnailPageCount: resolved.thumbnailPageCount,
-          mergedAllThumbnailPages: true,
-        };
-      }
       const ehUnavailable =
         settings.site === "EX" && (incomingEhUnavailable || attempt.site === "EX");
       const routingExtern = buildRoutingExtern(ehUnavailable);
-      mapped.extern = {
-        ...mapped.extern,
-        ...routingExtern,
-      };
-      mapped.data.chapter.docs = mapped.data.chapter.docs.map((doc) => ({
-        ...doc,
-        extern: {
-          ...doc.extern,
-          ...routingExtern,
-        },
-      }));
-      return mapped;
+      const requestedChunk = resolveGalleryChunkFromExtern(extern, undefined, chunkSize);
+      const earlyCacheKey = buildChapterCacheKey(comicId, attempt.site, requestedChunk);
+      const earlyCached = await readCachedChapterSnapshot(earlyCacheKey);
+      if (earlyCached) {
+        title = earlyCached.title;
+        pages = earlyCached.pages;
+        resolvedChunk = requestedChunk;
+        resolvedEhUnavailable = ehUnavailable;
+        break;
+      }
+
+      const firstDetailUrl = buildDetailEndpoint(comicId, attempt.site, 0);
+      const firstHtml = await getText(firstDetailUrl, attempt.requestConfig);
+      if (!firstHtml.trim()) {
+        continue;
+      }
+
+      let parsedDetailPageCount: number | undefined;
+      try {
+        const detail = parseDetailPage(firstHtml, comicId);
+        title = detail.title || comicId;
+        parsedDetailPageCount = detail.pageCount;
+      } catch {
+        // chapter view should still work even if detail parse fails.
+      }
+
+      const firstRange = parseThumbnailRangePage(firstHtml);
+      resolvedTotalPageCount = parsedDetailPageCount ?? firstRange.imageCount;
+      resolvedChunk = resolveGalleryChunkFromExtern(extern, resolvedTotalPageCount, chunkSize);
+      const pageMap = new Map<number, SnapshotPage>();
+      const chunkExtern = buildGalleryChunkExtern(resolvedChunk, resolvedTotalPageCount, chunkSize);
+      const cacheKey = buildChapterCacheKey(comicId, attempt.site, resolvedChunk);
+      const cached = await readCachedChapterSnapshot(cacheKey);
+      if (cached) {
+        title = cached.title;
+        pages = cached.pages;
+        resolvedEhUnavailable = ehUnavailable;
+        break;
+      }
+
+      const parsedRanges = await resolveThumbnailRangesForChunk(
+        comicId,
+        attempt.site,
+        firstRange,
+        resolvedChunk,
+        (url) => getText(url, attempt.requestConfig),
+      );
+      for (const range of parsedRanges) {
+        appendRangeEntries(pageMap, range, { ...routingExtern, ...chunkExtern }, resolvedChunk);
+      }
+
+      pages = Array.from(pageMap.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([, page]) => page);
+      if (pages.length) {
+        const cacheValue = { title, pages };
+        await writeCachedChapterSnapshot(cacheKey, cacheValue);
+        if (cacheKey !== earlyCacheKey) {
+          await writeCachedChapterSnapshot(earlyCacheKey, cacheValue);
+        }
+        resolvedEhUnavailable = ehUnavailable;
+        break;
+      }
     } catch (error) {
       lastError = error;
     }
   }
 
-  throw lastError ?? parseError("failed to resolve chapter pages");
-}
+  if (!pages.length) {
+    if (lastError) {
+      throw lastError;
+    }
+    throw parseError("no readable pages in chapter");
+  }
 
+  const routingExtern = buildRoutingExtern(resolvedEhUnavailable);
+  const chapterId = String(payload.chapterId ?? "").trim() || buildGalleryChunkId(resolvedChunk);
+  const chapterOrder = readChapterOrder(extern, resolvedChunk);
+  return mapChapterContent(
+    comicId,
+    title,
+    resolvedChunk,
+    resolvedTotalPageCount,
+    pages,
+    chapterId,
+    chapterOrder,
+    routingExtern,
+  );
+}

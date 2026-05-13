@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { getChapter } from "../src/index";
 import { httpClient } from "../src/network/client";
+import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf-8");
@@ -146,19 +147,21 @@ describe("chapter contract", () => {
   test("test_getChapter_valid_payload_returns_ordered_docs", async () => {
     const getTextSpy = vi.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
 
     const result = await getChapter({
       comicId: "123456/abcdef",
       chapterId: "123456/abcdef",
       page: 1,
     });
-    expect(result.scheme.type).toBe("chapterContent");
-    expect(result.data.chapter.length).toBe(3);
-    expect(result.data.chapter.docs[0].id).toBe("1");
-    expect(result.data.chapter.docs[2].id).toBe("3");
+    expect(result.source).toBe("ehentai");
+    expect(result.data.comic.id).toBe("123456/abcdef");
+    expect(result.data.chapter.id).toBe("123456/abcdef");
+    expect(result.data.chapter.pages).toHaveLength(3);
+    expect(result.data.chapter.pages[0].id).toBe("1");
+    expect(result.data.chapter.pages[2].id).toBe("3");
+    expect(result.data.chapter.storageChapterId).toBe("Gallery");
+    const deferredUrl = new URL(result.data.chapter.pages[0].url);
+    expect(deferredUrl.pathname).toBe(DEFERRED_IMAGE_PATH);
   });
 
   test("test_getChapter_first_page_merges_all_thumbnail_pages_for_download", async () => {
@@ -176,21 +179,18 @@ describe("chapter contract", () => {
           "https://e-hentai.org/s/a2/123-2",
         ]);
       }
-      if (url.includes("/s/")) {
-        return fixture("image-page.html");
-      }
       throw new Error(`unexpected url: ${url}`);
     });
 
     const result = await getChapter({ comicId: "123456/abcdef", page: 1 });
-    expect(result.data.chapter.length).toBe(4);
-    expect(result.data.chapter.docs.map((doc) => doc.id)).toEqual(["1", "2", "3", "4"]);
-    expect(result.extern).toMatchObject({
-      page: 1,
-      pageCount: 1,
-      hasReachedMax: true,
-      thumbnailPageCount: 2,
-      mergedAllThumbnailPages: true,
+    expect(result.data.chapter.pages).toHaveLength(4);
+    expect(result.data.chapter.pages.map((doc) => doc.id)).toEqual(["1", "2", "3", "4"]);
+    expect(result.data.chapter.extern).toMatchObject({
+      chunkIndex: 1,
+      chunkStart: 1,
+      chunkEnd: 4,
+      chunkSize: 200,
+      totalPageCount: 4,
     });
     expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
   });
@@ -210,9 +210,6 @@ describe("chapter contract", () => {
           "https://e-hentai.org/s/a2/123-2",
         ]);
       }
-      if (url.includes("/s/")) {
-        return fixture("image-page.html");
-      }
       throw new Error(`unexpected url: ${url}`);
     });
 
@@ -227,8 +224,10 @@ describe("chapter contract", () => {
         totalPageCount: 4,
       },
     });
-    expect(result.data.chapter.length).toBe(2);
-    expect(result.data.chapter.docs.map((doc) => doc.id)).toEqual(["3", "4"]);
+    expect(result.data.chapter.id).toBe("chunk-2");
+    expect(result.data.chapter.order).toBe(2);
+    expect(result.data.chapter.pages).toHaveLength(2);
+    expect(result.data.chapter.pages.map((doc) => doc.id)).toEqual(["3", "4"]);
     expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
   });
 
@@ -237,16 +236,13 @@ describe("chapter contract", () => {
     try {
       const getTextSpy = vi.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
 
       const first = await getChapter({ comicId: "123456/abcdef", page: 1 });
       const second = await getChapter({ comicId: "123456/abcdef", page: 1 });
 
-      expect(first.data.chapter.docs).toHaveLength(3);
-      expect(second.data.chapter.docs).toHaveLength(3);
-      expect(getTextSpy).toHaveBeenCalledTimes(4);
+      expect(first.data.chapter.pages).toHaveLength(3);
+      expect(second.data.chapter.pages).toHaveLength(3);
+      expect(getTextSpy).toHaveBeenCalledTimes(1);
     } finally {
       restoreBridge();
     }
@@ -257,14 +253,11 @@ describe("chapter contract", () => {
     try {
       const getTextSpy = vi.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-      getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
 
       await getChapter({ comicId: "123456/abcdef", page: 1 });
       await getChapter({ comicId: "123456/abcdef", page: 1 });
 
-      expect(getTextSpy).toHaveBeenCalledTimes(4);
+      expect(getTextSpy).toHaveBeenCalledTimes(1);
     } finally {
       restoreBridge();
     }
@@ -284,72 +277,19 @@ describe("chapter contract", () => {
     });
   });
 
-  test("test_getChapter_mpv_href_retry_with_nl_returns_image_doc", async () => {
+  test("test_getChapter_mpv_href_returns_deferred_image_doc", async () => {
     const getTextSpy = vi.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(
       thumbnailFixtureWithHrefs(["https://e-hentai.org/mpv/123456/sampletoken#page1"]),
     );
-    getTextSpy.mockResolvedValueOnce(`
-      <div id="loadfail" onclick="return nl('WZG-RETRY-KEY')"></div>
-      <div>An error has occurred.</div>
-    `);
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
 
     const result = await getChapter({ comicId: "123456/abcdef", page: 1 });
-    expect(result.data.chapter.docs).toHaveLength(1);
-    expect(result.data.chapter.docs[0].url).toBe("https://ehgt.org/full/1.jpg");
-    expect(getTextSpy.mock.calls[1]?.[0]).toContain("/s/abcdefghij/123456-1");
-    expect(getTextSpy.mock.calls[2]?.[0]).toContain("nl=WZG-RETRY-KEY");
-  });
-
-  test("test_getChapter_partial_parse_failure_keeps_valid_pages", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    getTextSpy.mockResolvedValueOnce(
-      thumbnailFixtureWithHrefs([
-        "https://e-hentai.org/s/a1/123-1",
-        "https://e-hentai.org/s/a2/123-2",
-      ]),
-    );
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-    getTextSpy.mockResolvedValueOnce("<html><body>broken image page</body></html>");
-
-    const result = await getChapter({ comicId: "123456/abcdef", page: 1 });
-    expect(result.data.chapter.docs).toHaveLength(1);
-    expect(result.data.chapter.docs[0].id).toBe("1");
-  });
-
-  test("test_getChapter_limit_page_returns_upstream_blocked", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    getTextSpy.mockImplementation(async (url: string) => {
-      if (url.includes("/g/123456/abcdef/")) {
-        return thumbnailFixtureWithHrefs([
-          "https://e-hentai.org/s/a1/123-1",
-          "https://e-hentai.org/s/a2/123-2",
-        ]);
-      }
-      if (url.includes("/s/a1/123-1")) {
-        return "<html><body>You have reached the image limit.</body></html>";
-      }
-      return fixture("image-page.html");
-    });
-
-    await expect(getChapter({ comicId: "123456/abcdef", page: 1 })).rejects.toMatchObject({
-      code: "UPSTREAM_BLOCKED",
+    expect(result.data.chapter.pages).toHaveLength(1);
+    const deferredUrl = new URL(result.data.chapter.pages[0].url);
+    expect(deferredUrl.pathname).toBe(DEFERRED_IMAGE_PATH);
+    expect(result.data.chapter.pages[0].extern).toMatchObject({
+      href: "https://e-hentai.org/s/abcdefghij/123456-1",
     });
   });
 
-  test("test_getChapter_509_placeholder_returns_upstream_blocked", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    getTextSpy.mockResolvedValueOnce(
-      thumbnailFixtureWithHrefs(["https://e-hentai.org/s/a1/123-1"]),
-    );
-    getTextSpy.mockResolvedValueOnce(`
-      <div id="i3"><img id="img" src="https://ehgt.org/g/509.gif" /></div>
-      <a id="loadfail" onclick="return nl('WZG-509')">reload</a>
-    `);
-
-    await expect(getChapter({ comicId: "123456/abcdef", page: 1 })).rejects.toMatchObject({
-      code: "UPSTREAM_BLOCKED",
-    });
-  });
 });

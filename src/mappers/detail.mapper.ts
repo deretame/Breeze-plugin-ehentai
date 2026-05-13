@@ -181,6 +181,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
           },
         },
         eps: chunks.map((chunk) => ({
+          id: buildGalleryChunkId(chunk),
           name: formatGalleryChunkName(chunk, detail.pageCount),
           order: chunk.index,
           requestId: buildGalleryChunkId(chunk),

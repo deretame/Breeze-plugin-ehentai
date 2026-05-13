@@ -331,10 +331,11 @@ export async function getReadSnapshotService(
   const chunkChapters = buildGalleryChunks(resolvedTotalPageCount, chunkSize).map((chunk) => {
     const chunkId = buildGalleryChunkId(chunk);
     return {
+      id: chunkId,
       name: formatGalleryChunkName(chunk, resolvedTotalPageCount),
       order: chunk.index,
       requestId: chunkId,
-      storageChapterId: chunkId,
+      storageChapterId: "Gallery",
       logicalKey: chunkId,
       extern: {
         ...buildGalleryChunkExtern(chunk, resolvedTotalPageCount, chunkSize),
@@ -344,6 +345,7 @@ export async function getReadSnapshotService(
   });
   const chapterId = requestedChapterId || buildGalleryChunkId(resolvedChunk);
   const chapterRef = {
+    id: chapterId,
     name: formatGalleryChunkName(resolvedChunk, resolvedTotalPageCount),
     order: chapterOrder,
     requestId: chapterId,

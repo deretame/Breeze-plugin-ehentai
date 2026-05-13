@@ -48,7 +48,6 @@ export async function getComicDetailService(
           ...ep.extension,
         },
       }));
-      console.log(mapped);
       return mapped;
     } catch (error) {
       lastError = error;

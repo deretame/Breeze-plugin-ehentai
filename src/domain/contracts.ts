@@ -156,28 +156,7 @@ export type ComicDetailContract = {
   };
 };
 
-export type ChapterContentContract = {
-  source: string;
-  comicId: string;
-  chapterId: string;
-  extern: Record<string, unknown>;
-  scheme: { version: "1.0.0"; type: "chapterContent" };
-  data: {
-    chapter: {
-      epId: string;
-      epName: string;
-      length: number;
-      epPages: string;
-      docs: Array<{
-        id: string;
-        name: string;
-        path: string;
-        url: string;
-        extern?: Record<string, unknown>;
-      }>;
-    };
-  };
-};
+export type ChapterContentContract = ReadSnapshotContract;
 
 export type ReadSnapshotContract = {
   source: string;

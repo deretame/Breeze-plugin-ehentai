@@ -127,6 +127,9 @@ describe("read snapshot contract", () => {
         id: "chunk-1",
         name: "Gallery 001-003",
         order: 1,
+        requestId: "chunk-1",
+        storageChapterId: "Gallery",
+        logicalKey: "chunk-1",
         extern: {
           chunkIndex: 1,
           chunkStart: 1,

@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, expect, test, vi } from "vitest";
 import { getChapter, getComicDetail, searchComic } from "../src/index";
 import { httpClient } from "../src/network/client";
+import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf-8");
@@ -27,6 +28,8 @@ describe("integration smoke", () => {
     expect(detail.data.normal.eps[0].id).toBe("chunk-1");
 
     const chapter = await getChapter({ comicId, chapterId: "chunk-1", page: 1 });
-    expect(chapter.data.chapter.docs.map((doc) => doc.id)).toEqual(["1", "2", "3"]);
+    expect(chapter.data.chapter.id).toBe("chunk-1");
+    expect(chapter.data.chapter.pages.map((doc) => doc.id)).toEqual(["1", "2", "3"]);
+    expect(new URL(chapter.data.chapter.pages[0].url).pathname).toBe(DEFERRED_IMAGE_PATH);
   });
 });

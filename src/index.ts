@@ -124,7 +124,9 @@ export async function getComicDetail(
 export async function getChapter(payload: ChapterPayload = {}): Promise<ChapterContentContract> {
   try {
     const settings = await readSettings(payload.extern);
-    return await getChapterService(payload, settings);
+    let data = await getChapterService(payload, settings);
+    console.debug(data);
+    return data;
   } catch (error) {
     throw normalizeError(error);
   }

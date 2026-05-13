@@ -1,49 +1,75 @@
 import { PLUGIN_SOURCE } from "../domain/constants";
 import type { ChapterContentContract } from "../domain/contracts";
+import type { GalleryChunk } from "../utils/chunk";
+import {
+  buildGalleryChunkExtern,
+  buildGalleryChunkId,
+  buildGalleryChunks,
+  formatGalleryChunkName,
+  getGalleryChunkSize,
+} from "../utils/chunk";
 
-export type ChapterDocInput = {
-  index: number;
-  href: string;
-  imageUrl: string;
-  reloadKey?: string;
-  fileName?: string;
+type SnapshotPageInput = {
+  id: string;
+  name: string;
+  path: string;
+  url: string;
+  extern: Record<string, unknown>;
 };
 
 export function mapChapterContent(
   comicId: string,
+  title: string,
+  chunk: GalleryChunk,
+  totalPageCount: number,
+  pages: SnapshotPageInput[],
   chapterId: string,
-  page: number,
-  pageCount: number,
-  items: ChapterDocInput[],
+  chapterOrder: number,
+  routingExtern: Record<string, unknown>,
 ): ChapterContentContract {
+  const chunkSize = getGalleryChunkSize();
+  const chapterExtern = {
+    ...buildGalleryChunkExtern(chunk, totalPageCount, chunkSize),
+    ...routingExtern,
+  };
+
+  const chapters = buildGalleryChunks(totalPageCount, chunkSize).map((entry) => {
+    const chunkId = buildGalleryChunkId(entry);
+    return {
+      id: chunkId,
+      name: formatGalleryChunkName(entry, totalPageCount),
+      order: entry.index,
+      requestId: chunkId,
+      storageChapterId: "Gallery",
+      logicalKey: chunkId,
+      extern: {
+        ...buildGalleryChunkExtern(entry, totalPageCount, chunkSize),
+        ...routingExtern,
+      },
+    };
+  });
+
   return {
     source: PLUGIN_SOURCE,
-    comicId,
-    chapterId,
-    extern: {
-      page,
-      pageCount,
-      hasReachedMax: page >= pageCount,
-    },
-    scheme: { version: "1.0.0", type: "chapterContent" },
+    extern: chapterExtern,
     data: {
-      chapter: {
-        epId: chapterId,
-        epName: "Gallery",
-        length: items.length,
-        epPages: String(items.length),
-        docs: items.map((item) => ({
-          id: String(item.index),
-          name: item.fileName ?? `${item.index}.img`,
-          path: item.fileName ?? `${item.index}.img`,
-          url: item.imageUrl,
-          extern: {
-            href: item.href,
-            reloadKey: item.reloadKey,
-          },
-        })),
+      comic: {
+        id: comicId,
+        source: PLUGIN_SOURCE,
+        title,
+        extern: routingExtern,
       },
+      chapter: {
+        id: chapterId,
+        name: formatGalleryChunkName(chunk, totalPageCount),
+        order: chapterOrder,
+        requestId: chapterId,
+        storageChapterId: "Gallery",
+        logicalKey: chapterId,
+        pages,
+        extern: chapterExtern,
+      },
+      chapters,
     },
   };
 }
-

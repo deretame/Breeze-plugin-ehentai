@@ -134,14 +134,14 @@ describe("site routing behavior", () => {
       },
     });
 
-    expect(getTextSpy).toHaveBeenCalledTimes(2);
+    expect(getTextSpy).toHaveBeenCalledTimes(1);
     expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toContain(
       "https://exhentai.org/g/123456/abcdef/",
     );
     expect(result.extern).toMatchObject({
       ehUnavailable: true,
     });
-    expect(result.data.chapter.docs[0].extern).toMatchObject({
+    expect(result.data.chapter.pages[0].extern).toMatchObject({
       href: "https://exhentai.org/s/a1/123-1",
       ehUnavailable: true,
     });
