@@ -9,7 +9,6 @@ import type {
   ComicDetailContract,
   FetchImageBytesContract,
   InfoContract,
-  ReadPagesCompatContract,
   ReadSnapshotContract,
   SearchResultContract,
   SettingsBundleContract,
@@ -21,7 +20,11 @@ import type {
   SearchComicPayload,
 } from "./domain/types";
 import { normalizeError } from "./errors/normalize-error";
-import { getChapterService, getReadPagesService } from "./services/chapter.service";
+import { mapSearchResult } from "./mappers/comic.mapper";
+import { httpClient } from "./network/client";
+import { buildSearchNavigationEndpoint } from "./network/endpoints";
+import { parseSearchPage } from "./parsers/search.parser";
+import { getChapterService } from "./services/chapter.service";
 import { getComicDetailService } from "./services/detail.service";
 import { fetchImageBytesService } from "./services/image.service";
 import { getInfoService } from "./services/info.service";
@@ -36,10 +39,6 @@ import {
   sanitizeForumCookie,
   saveForumCookie,
 } from "./services/settings.service";
-import { buildSearchNavigationEndpoint } from "./network/endpoints";
-import { httpClient } from "./network/client";
-import { parseSearchPage } from "./parsers/search.parser";
-import { mapSearchResult } from "./mappers/comic.mapper";
 import { asRecord } from "./utils/guards";
 
 function extractCookieFromPayload(payload: Record<string, unknown>): string {
@@ -126,15 +125,6 @@ export async function getChapter(payload: ChapterPayload = {}): Promise<ChapterC
   try {
     const settings = await readSettings(payload.extern);
     return await getChapterService(payload, settings);
-  } catch (error) {
-    throw normalizeError(error);
-  }
-}
-
-export async function getReadPages(payload: ChapterPayload = {}): Promise<ReadPagesCompatContract> {
-  try {
-    const settings = await readSettings(payload.extern);
-    return await getReadPagesService(payload, settings);
   } catch (error) {
     throw normalizeError(error);
   }
@@ -547,7 +537,6 @@ export default {
   searchComic,
   getComicDetail,
   getChapter,
-  getReadPages,
   getReadSnapshot,
   fetchImageBytes,
   getSettingsBundle,

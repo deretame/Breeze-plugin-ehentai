@@ -131,9 +131,12 @@ export type ComicDetailContract = {
         extension: Record<string, unknown>;
       };
       eps: Array<{
-        id: string;
+        id?: string;
         name: string;
         order: number;
+        requestId?: string;
+        storageChapterId?: string;
+        logicalKey?: string;
         extern: Record<string, unknown>;
         extension: Record<string, unknown>;
       }>;
@@ -176,15 +179,6 @@ export type ChapterContentContract = {
   };
 };
 
-export type ReadPagesCompatContract = {
-  source: string;
-  scheme: { version: "1.0.0"; type: "readPages" };
-  data: {
-    paging: { page: number; hasReachedMax: boolean };
-    items: Array<{ index: number; url: string; extern: { href: string; reloadKey?: string } }>;
-  };
-};
-
 export type ReadSnapshotContract = {
   source: string;
   extern: Record<string, unknown>;
@@ -196,9 +190,12 @@ export type ReadSnapshotContract = {
       extern: Record<string, unknown>;
     };
     chapter: {
-      id: string;
+      id?: string;
       name: string;
       order: number;
+      requestId?: string;
+      storageChapterId?: string;
+      logicalKey?: string;
       pages: Array<{
         id: string;
         name: string;
@@ -209,9 +206,12 @@ export type ReadSnapshotContract = {
       extern: Record<string, unknown>;
     };
     chapters: Array<{
-      id: string;
+      id?: string;
       name: string;
       order: number;
+      requestId?: string;
+      storageChapterId?: string;
+      logicalKey?: string;
       extern: Record<string, unknown>;
     }>;
   };

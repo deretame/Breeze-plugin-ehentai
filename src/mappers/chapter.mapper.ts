@@ -1,11 +1,12 @@
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { ChapterContentContract, ReadPagesCompatContract } from "../domain/contracts";
+import type { ChapterContentContract } from "../domain/contracts";
 
 export type ChapterDocInput = {
   index: number;
   href: string;
   imageUrl: string;
   reloadKey?: string;
+  fileName?: string;
 };
 
 export function mapChapterContent(
@@ -33,8 +34,8 @@ export function mapChapterContent(
         epPages: String(items.length),
         docs: items.map((item) => ({
           id: String(item.index),
-          name: `${item.index}.jpg`,
-          path: `${item.index}.jpg`,
+          name: item.fileName ?? `${item.index}.img`,
+          path: item.fileName ?? `${item.index}.img`,
           url: item.imageUrl,
           extern: {
             href: item.href,
@@ -46,27 +47,3 @@ export function mapChapterContent(
   };
 }
 
-export function mapReadPagesCompat(
-  page: number,
-  pageCount: number,
-  items: ChapterDocInput[],
-): ReadPagesCompatContract {
-  return {
-    source: PLUGIN_SOURCE,
-    scheme: { version: "1.0.0", type: "readPages" },
-    data: {
-      paging: {
-        page,
-        hasReachedMax: page >= pageCount,
-      },
-      items: items.map((item) => ({
-        index: item.index,
-        url: item.imageUrl,
-        extern: {
-          href: item.href,
-          reloadKey: item.reloadKey,
-        },
-      })),
-    },
-  };
-}

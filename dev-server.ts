@@ -1,12 +1,12 @@
+import { rspack, type MultiStats, type Stats } from "@rspack/core";
 import { createHash } from "node:crypto";
 import { mkdir, readFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { networkInterfaces } from "node:os";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { rspack, type MultiStats, type Stats } from "@rspack/core";
-import { getComicDetail, getReadPages, searchComic } from "./src/index";
 import { createRspackConfig } from "./rspack.shared";
+import { getComicDetail, searchComic } from "./src/index";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -452,12 +452,6 @@ async function handleDetail(req: IncomingMessage, res: ServerResponse): Promise<
   });
 }
 
-async function handleRead(req: IncomingMessage, res: ServerResponse): Promise<void> {
-  await runApiHandler(req, res, async (payload) => {
-    return await getReadPages(payload);
-  });
-}
-
 async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
   if (req.method === "OPTIONS") {
     setCommonHeaders(res);
@@ -489,11 +483,6 @@ async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
 
   if (pathname === API_PATHS.detail) {
     await handleDetail(req, res);
-    return;
-  }
-
-  if (pathname === API_PATHS.read) {
-    await handleRead(req, res);
     return;
   }
 

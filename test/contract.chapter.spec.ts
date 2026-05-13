@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { getChapter, getReadPages } from "../src/index";
+import { getChapter } from "../src/index";
 import { httpClient } from "../src/network/client";
 
 function fixture(name: string): string {
@@ -230,19 +230,6 @@ describe("chapter contract", () => {
     expect(result.data.chapter.length).toBe(2);
     expect(result.data.chapter.docs.map((doc) => doc.id)).toEqual(["3", "4"]);
     expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
-  });
-
-  test("test_getReadPages_compat_alias_returns_read_pages_shape", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-    getTextSpy.mockResolvedValueOnce(fixture("image-page.html"));
-
-    const result = await getReadPages({ comicId: "123456/abcdef", page: 1 });
-    expect(result.scheme.type).toBe("readPages");
-    expect(result.data.items).toHaveLength(3);
-    expect(result.data.items[0].extern.reloadKey).toBe("WZG-474997");
   });
 
   test("test_getChapter_second_request_hits_cache_and_skips_network", async () => {

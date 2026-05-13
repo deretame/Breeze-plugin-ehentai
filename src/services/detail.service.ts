@@ -1,5 +1,5 @@
 import type { ComicDetailContract } from "../domain/contracts";
-import type { PluginSettings, ComicDetailPayload } from "../domain/types";
+import type { ComicDetailPayload, PluginSettings } from "../domain/types";
 import { mapComicDetail } from "../mappers/detail.mapper";
 import { httpClient } from "../network/client";
 import { buildDetailEndpoint } from "../network/endpoints";
@@ -48,6 +48,7 @@ export async function getComicDetailService(
           ...ep.extension,
         },
       }));
+      console.log(mapped);
       return mapped;
     } catch (error) {
       lastError = error;

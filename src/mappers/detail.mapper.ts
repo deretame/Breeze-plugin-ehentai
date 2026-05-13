@@ -181,9 +181,11 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
           },
         },
         eps: chunks.map((chunk) => ({
-          id: buildGalleryChunkId(chunk),
           name: formatGalleryChunkName(chunk, detail.pageCount),
-          order: 1,
+          order: chunk.index,
+          requestId: buildGalleryChunkId(chunk),
+          storageChapterId: buildGalleryChunkId(chunk),
+          logicalKey: buildGalleryChunkId(chunk),
           extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),
           extension: {
             pageCount: detail.pageCount ?? 0,

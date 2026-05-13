@@ -1,9 +1,8 @@
-import type { ChapterContentContract, ReadPagesCompatContract } from "../domain/contracts";
+import type { ChapterContentContract } from "../domain/contracts";
 import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError, PluginError } from "../errors/plugin-error";
 import {
   mapChapterContent,
-  mapReadPagesCompat,
   type ChapterDocInput,
 } from "../mappers/chapter.mapper";
 import { httpClient, mapWithConcurrency } from "../network/client";
@@ -25,6 +24,7 @@ import {
   readEhUnavailableExtern,
   type RequestConfig,
 } from "./site-routing.service";
+import { buildDeferredImageUrl } from "../utils/deferred-image";
 import {
   getGalleryChunkSize,
   resolveGalleryChunkFromExtern,
@@ -73,8 +73,12 @@ function isValidChapterDocInput(value: unknown): value is ChapterDocInput {
   const index = Number(map.index);
   const href = String(map.href ?? "").trim();
   const imageUrl = String(map.imageUrl ?? "").trim();
+  const fileName = map.fileName;
   const reloadKey = map.reloadKey;
   if (!Number.isInteger(index) || index <= 0 || !href || !imageUrl) {
+    return false;
+  }
+  if (fileName !== undefined && fileName !== null && typeof fileName !== "string") {
     return false;
   }
   if (reloadKey !== undefined && reloadKey !== null && typeof reloadKey !== "string") {
@@ -225,6 +229,17 @@ async function resolveChapterDoc(
   }
 }
 
+function toDeferredChapterDocInput(item: ChapterDocInput): ChapterDocInput {
+  const deferredFileName = `${item.index}.img`;
+  return {
+    index: item.index,
+    href: item.href,
+    imageUrl: buildDeferredImageUrl(item.href),
+    reloadKey: item.reloadKey,
+    fileName: deferredFileName,
+  };
+}
+
 function buildRangeTargets(
   ranges: ReaderRangeParsed[],
 ): Array<{ imagePageHref: string; imageIndex: number }> {
@@ -369,7 +384,7 @@ export async function getChapterService(
         chapterId,
         page,
         resolved.pageCount,
-        resolved.items,
+        resolved.items.map(toDeferredChapterDocInput),
       );
       if (resolved.mergedAllThumbnailPages) {
         mapped.extern = {
@@ -401,42 +416,3 @@ export async function getChapterService(
   throw lastError ?? parseError("failed to resolve chapter pages");
 }
 
-export async function getReadPagesService(
-  payload: ChapterPayload,
-  settings: PluginSettings,
-): Promise<ReadPagesCompatContract> {
-  const comicId = requiredString(payload.comicId, "comicId");
-  const page = normalizePage(payload.page, 1);
-  const incomingEhUnavailable = readEhUnavailableExtern(payload.extern);
-  const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
-  let lastError: unknown;
-
-  for (const attempt of attempts) {
-    try {
-      const resolved = await resolveChapterDocs(
-        comicId,
-        page,
-        payload.extern,
-        attempt.site,
-        attempt.requestConfig,
-        false,
-      );
-      const mapped = mapReadPagesCompat(page, resolved.pageCount, resolved.items);
-      const ehUnavailable =
-        settings.site === "EX" && (incomingEhUnavailable || attempt.site === "EX");
-      const routingExtern = buildRoutingExtern(ehUnavailable);
-      mapped.data.items = mapped.data.items.map((item) => ({
-        ...item,
-        extern: {
-          ...item.extern,
-          ...routingExtern,
-        },
-      }));
-      return mapped;
-    } catch (error) {
-      lastError = error;
-    }
-  }
-
-  throw lastError ?? parseError("failed to resolve read pages");
-}
