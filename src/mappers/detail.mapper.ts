@@ -15,17 +15,17 @@ import { sanitizeMediaUrl } from "../utils/url";
 function actionItem(
   value?: string | number,
   onTap: Record<string, unknown> = {},
-  extension: Record<string, unknown> = {},
+  extern: Record<string, unknown> = {},
 ): {
   name: string;
   onTap: Record<string, unknown>;
-  extension: Record<string, unknown>;
+  extern: Record<string, unknown>;
 } {
   const text = value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
   return {
     name: text,
     onTap,
-    extension,
+    extern,
   };
 }
 
@@ -35,7 +35,7 @@ function withLabel(
 ): {
   name: string;
   onTap: Record<string, unknown>;
-  extension: Record<string, unknown>;
+  extern: Record<string, unknown>;
 } {
   const normalizedValue =
     value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
@@ -59,7 +59,7 @@ function buildTagMetadata(detail: DetailParsed): Array<{
   value: Array<{
     name: string;
     onTap: Record<string, unknown>;
-    extension: Record<string, unknown>;
+    extern: Record<string, unknown>;
   }>;
 }> {
   return Object.entries(detail.tagsByNamespace)
@@ -97,7 +97,7 @@ function buildTagMetadata(detail: DetailParsed): Array<{
         value: Array<{
           name: string;
           onTap: Record<string, unknown>;
-          extension: Record<string, unknown>;
+          extern: Record<string, unknown>;
         }>;
       } => Boolean(item),
     );
@@ -108,7 +108,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
   const titleMeta: Array<{
     name: string;
     onTap: Record<string, unknown>;
-    extension: Record<string, unknown>;
+    extern: Record<string, unknown>;
   }> = [];
 
   if (detail.englishTitle && detail.japaneseTitle) {
@@ -158,7 +158,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
             url: coverUrl,
             name: "",
             path: buildMediaPath(comicId, coverUrl),
-            extension: {},
+            extern: {},
           },
           creator: {
             id: "",
@@ -169,14 +169,14 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
               url: "",
               name: "",
               path: "",
-              extension: {},
+              extern: {},
             },
             onTap: {},
-            extension: {},
+            extern: {},
           },
           titleMeta,
           metadata,
-          extension: {
+          extern: {
             tagsByNamespace: detail.tagsByNamespace,
           },
         },
@@ -185,12 +185,9 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
           name: formatGalleryChunkName(chunk, detail.pageCount),
           order: chunk.index,
           requestId: buildGalleryChunkId(chunk),
-          storageChapterId: buildGalleryChunkId(chunk),
+          storageChapterId: "Gallery",
           logicalKey: buildGalleryChunkId(chunk),
           extern: buildGalleryChunkExtern(chunk, detail.pageCount, chunkSize),
-          extension: {
-            pageCount: detail.pageCount ?? 0,
-          },
         })),
         recommend: [],
         totalViews: 0,
@@ -202,7 +199,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
         allowLike: true,
         allowCollected: true,
         allowDownload: true,
-        extension: {},
+        extern: {},
       },
       raw: {
         detail,

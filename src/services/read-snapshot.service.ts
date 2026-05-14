@@ -349,7 +349,7 @@ export async function getReadSnapshotService(
     name: formatGalleryChunkName(resolvedChunk, resolvedTotalPageCount),
     order: chapterOrder,
     requestId: chapterId,
-    storageChapterId: chapterId,
+    storageChapterId: "Gallery",
     logicalKey: chapterId,
     extern: chapterExtern,
   };

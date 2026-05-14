@@ -98,7 +98,7 @@ export type ComicDetailContract = {
           url: string;
           name: string;
           path: string;
-          extension: Record<string, unknown>;
+          extern: Record<string, unknown>;
         };
         creator: {
           id: string;
@@ -109,15 +109,15 @@ export type ComicDetailContract = {
             url: string;
             name: string;
             path: string;
-            extension: Record<string, unknown>;
+            extern: Record<string, unknown>;
           };
           onTap: Record<string, unknown>;
-          extension: Record<string, unknown>;
+          extern: Record<string, unknown>;
         };
         titleMeta: Array<{
           name: string;
           onTap: Record<string, unknown>;
-          extension: Record<string, unknown>;
+          extern: Record<string, unknown>;
         }>;
         metadata: Array<{
           type: string;
@@ -125,10 +125,10 @@ export type ComicDetailContract = {
           value: Array<{
             name: string;
             onTap: Record<string, unknown>;
-            extension: Record<string, unknown>;
+            extern: Record<string, unknown>;
           }>;
         }>;
-        extension: Record<string, unknown>;
+        extern: Record<string, unknown>;
       };
       eps: Array<{
         id?: string;
@@ -138,7 +138,6 @@ export type ComicDetailContract = {
         storageChapterId?: string;
         logicalKey?: string;
         extern: Record<string, unknown>;
-        extension: Record<string, unknown>;
       }>;
       recommend: Array<unknown>;
       totalViews: number;
@@ -150,7 +149,7 @@ export type ComicDetailContract = {
       allowLike: boolean;
       allowCollected: boolean;
       allowDownload: boolean;
-      extension: Record<string, unknown>;
+      extern: Record<string, unknown>;
     };
     raw: Record<string, unknown>;
   };

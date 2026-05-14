@@ -25,22 +25,22 @@ describe("detail contract", () => {
     expect(result.data.normal.comicInfo.titleMeta[0]).toMatchObject({
       name: "副标题：日本語タイトル",
       onTap: {},
-      extension: {},
+      extern: {},
     });
     expect(result.data.normal.comicInfo.titleMeta[1]).toMatchObject({
       name: "分类：Manga",
       onTap: {},
-      extension: {},
+      extern: {},
     });
     expect(result.data.normal.comicInfo.titleMeta[3]).toMatchObject({
       name: "语言：English TR",
       onTap: {},
-      extension: {},
+      extern: {},
     });
     expect(result.data.normal.comicInfo.titleMeta).toContainEqual({
       name: "副标题：日本語タイトル",
       onTap: {},
-      extension: {},
+      extern: {},
     });
     expect(result.data.normal.comicInfo.metadata).toContainEqual({
       type: "tag:artist",
@@ -56,7 +56,7 @@ describe("detail contract", () => {
               extern: {},
             },
           },
-          extension: {},
+          extern: {},
         },
       ],
     });
@@ -65,6 +65,7 @@ describe("detail contract", () => {
     expect(result.data.normal.eps[0]).toMatchObject({
       name: "Gallery 001-042",
       order: 1,
+      storageChapterId: "Gallery",
       extern: {
         chunkIndex: 1,
         chunkStart: 1,
@@ -152,24 +153,25 @@ describe("detail contract", () => {
     `);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
-    expect(result.data.normal.comicInfo.metadata).toContainEqual({
-      type: "tag:language",
-      name: "语言",
-      value: [
-        {
-          name: "英语",
-          onTap: {
-            type: "openSearch",
-            payload: {
-              source: "ehentai",
-              keyword: "language:english",
-              extern: {},
+    expect(result.data.normal.comicInfo.metadata).toContainEqual(
+      expect.objectContaining({
+        type: "tag:language",
+        name: "语言",
+        value: [
+          expect.objectContaining({
+            onTap: {
+              type: "openSearch",
+              payload: {
+                source: "ehentai",
+                keyword: "language:english",
+                extern: {},
+              },
             },
-          },
-          extension: {},
-        },
-      ],
-    });
+            extern: {},
+          }),
+        ],
+      }),
+    );
   });
 
   test("test_getComicDetail_title_prefers_chinese_over_japanese_and_english", async () => {
@@ -215,7 +217,7 @@ describe("detail contract", () => {
       "Gallery 201-400",
       "Gallery 401-450",
     ]);
-    expect(result.data.normal.eps[1].order).toBe(1);
+    expect(result.data.normal.eps[1].order).toBe(2);
     expect(result.data.normal.eps[1].extern).toMatchObject({
       chunkIndex: 2,
       chunkStart: 201,

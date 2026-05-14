@@ -34,8 +34,8 @@ export async function getComicDetailService(
       const ehUnavailable =
         settings.site === "EX" && (incomingEhUnavailable || attempt.site === "EX");
       mapped.extern = buildRoutingExtern(ehUnavailable);
-      mapped.data.normal.comicInfo.extension = {
-        ...mapped.data.normal.comicInfo.extension,
+      mapped.data.normal.comicInfo.extern = {
+        ...mapped.data.normal.comicInfo.extern,
         ...buildRoutingExtern(ehUnavailable),
       };
       mapped.data.normal.eps = mapped.data.normal.eps.map((ep) => ({
@@ -43,9 +43,6 @@ export async function getComicDetailService(
         extern: {
           ...ep.extern,
           ...buildRoutingExtern(ehUnavailable),
-        },
-        extension: {
-          ...ep.extension,
         },
       }));
       return mapped;
