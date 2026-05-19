@@ -1,16 +1,19 @@
 {
-  "name": "ehentai",
-  "private": true,
-  "version": "0.0.1",
+  "name": "breeze-plugin-ehentai",
+  "version": "0.0.12",
   "type": "module",
   "packageManager": "pnpm@10.27.0",
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --import-plugin --vitest-plugin .",
     "lint:fix": "oxlint --import-plugin --vitest-plugin --fix .",
     "format": "oxfmt src test tests build *.ts *.js",
     "format:check": "oxfmt --check src test tests build *.ts *.js",
-    "build": "pnpm typecheck && node --import tsx build/generate-manifest.ts && cross-env NODE_OPTIONS=\"--import tsx\" rspack build && node --import tsx build/generate-brotli.ts",
+    "build": "pnpm typecheck && node --import tsx build/generate-version.ts && node --import tsx build/generate-manifest.ts && cross-env NODE_OPTIONS=\"--import tsx\" rspack build && node --import tsx build/generate-brotli.ts",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run --passWithNoTests",
     "test:smoke": "vitest run test/integration.smoke.spec.ts",
     "verify": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
