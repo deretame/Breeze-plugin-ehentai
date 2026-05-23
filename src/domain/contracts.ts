@@ -42,6 +42,7 @@ export type InfoContract = {
   version: string;
   home: string;
   updateUrl: string;
+  npmName: string;
   function: PluginFunctionItem[];
 };
 

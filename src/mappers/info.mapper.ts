@@ -53,6 +53,7 @@ export function mapInfo(): InfoContract {
     version: PLUGIN_VERSION,
     home: PLUGIN_HOME,
     updateUrl: PLUGIN_UPDATE_URL,
+    npmName: "breeze-plugin-ehentai",
     function: [
       {
         id: "latest",
