@@ -72,4 +72,4 @@ jobs:
           replacesArtifacts: true
 
       - name: Publish to npm
-        run: pnpm publish --ignore-scripts --provenance
+        run: npm publish --ignore-scripts --provenance
