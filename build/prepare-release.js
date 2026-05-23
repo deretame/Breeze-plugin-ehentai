@@ -1,6 +1,7 @@
 import fs from "node:fs";
 
 const constantsPath = "src/domain/constants.ts";
+const packageJsonPath = "package.json";
 
 const constantsSource = fs.readFileSync(constantsPath, "utf8");
 const versionMatch = constantsSource.match(/export const PLUGIN_VERSION = "([^"]+)";/);
@@ -26,6 +27,10 @@ const replaced = constantsSource.replace(
 );
 
 fs.writeFileSync(constantsPath, replaced, "utf8");
+
+const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+packageJson.version = pluginVersion;
+fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`, "utf8");
 
 const releaseTag = `v${pluginVersion}`;
 const outputFile = process.env.GITHUB_OUTPUT;

@@ -1,8 +1,12 @@
 {
   "name": "breeze-plugin-ehentai",
-  "version": "0.0.12",
+  "version": "0.0.13",
   "type": "module",
   "packageManager": "pnpm@10.27.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deretame/Breeze-plugin-ehentai.git"
+  },
   "files": [
     "dist"
   ],
