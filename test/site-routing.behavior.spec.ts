@@ -2,7 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
-import { fetchImageBytes, getChapter, getComicDetail, setEhentaiForumCookie } from "../src/index";
+import {
+  fetchImageBytes,
+  getChapter,
+  getComicDetail,
+  getRankingData,
+  setEhentaiForumCookie,
+} from "../src/index";
 import { httpClient } from "../src/network/client";
 import type { NativeApi } from "../types/runtime-globals";
 
@@ -169,5 +175,22 @@ describe("site routing behavior", () => {
     expect(result.nativeBufferId).toBe(99);
     expect(getTextSpy).toHaveBeenCalledTimes(1);
     expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
+  });
+
+  test("test_getRankingData_ex_falls_back_to_eh_for_toplist", async () => {
+    const getTextSpy = vi.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
+
+    await getRankingData({
+      extern: {
+        site: "EX",
+        rankType: "day",
+      },
+      page: 1,
+    });
+
+    expect(getTextSpy).toHaveBeenCalledTimes(1);
+    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toContain(
+      "https://e-hentai.org/toplist.php?tl=15&p=0",
+    );
   });
 });

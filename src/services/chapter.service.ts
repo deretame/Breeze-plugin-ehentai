@@ -116,7 +116,9 @@ function parseChapterCacheEnvelope(raw: unknown): ChapterCacheEnvelope | null {
   };
 }
 
-async function readCachedChapterSnapshot(cacheKey: string): Promise<ResolvedChapterSnapshot | null> {
+async function readCachedChapterSnapshot(
+  cacheKey: string,
+): Promise<ResolvedChapterSnapshot | null> {
   try {
     const raw = await cache.get(cacheKey, "");
     const decoded = unwrapBridgeValue(raw);

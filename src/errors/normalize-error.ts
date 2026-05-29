@@ -15,20 +15,32 @@ export function normalizeError(error: unknown): PluginError {
   }
 
   if (axios.isAxiosError(error)) {
-    return networkError(error.message, error, true);
+    return networkError(
+      error.message,
+      {
+        lastErrorMessage: error.message,
+        url: String(error.config?.url ?? ""),
+        method: String(error.config?.method ?? "GET").toUpperCase(),
+        status: Number(error.response?.status ?? 0) || undefined,
+        statusText: String(error.response?.statusText ?? ""),
+      },
+      true,
+    );
   }
 
   if (error instanceof Error) {
     const message = error.message || "Unknown plugin error";
     const lower = message.toLowerCase();
     if (BLOCKED_MARKERS.some((marker) => lower.includes(marker))) {
-      return upstreamBlockedError(message, error);
+      return upstreamBlockedError(message, { lastErrorMessage: message, name: error.name });
     }
     if (error.name === "SyntaxError") {
-      return parseError(message, error);
+      return parseError(message, { lastErrorMessage: message, name: error.name });
     }
-    return contractError(message, error);
+    return contractError(message, { lastErrorMessage: message, name: error.name });
   }
 
-  return contractError("Unknown plugin error", error);
+  return contractError("Unknown plugin error", {
+    lastErrorMessage: String(error),
+  });
 }

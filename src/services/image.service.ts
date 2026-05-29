@@ -22,7 +22,9 @@ import {
 function normalizeNativeBufferId(value: unknown): number {
   const nativeBufferId = Number(value);
   if (!Number.isInteger(nativeBufferId) || nativeBufferId < 0) {
-    throw contractError("invalid native buffer id", value);
+    throw contractError("invalid native buffer id", {
+      value,
+    });
   }
   return nativeBufferId;
 }

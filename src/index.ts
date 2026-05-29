@@ -231,9 +231,10 @@ export async function getFunctionPage(
       endpoint = buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site);
     } else if (source === "ranking") {
       const tl = resolveRankTl(rankType);
+      const rankingSite = settings.site === "EX" ? "EH" : settings.site;
       endpoint = buildSearchNavigationEndpoint(
         `/toplist.php?tl=${tl}&p=${Math.max(0, page - 1)}`,
-        settings.site,
+        rankingSite,
       );
     } else {
       endpoint = buildSearchNavigationEndpoint(resolveFunctionPageBySource(source), settings.site);
@@ -529,7 +530,12 @@ export async function setEhentaiManualCookie(
   };
 }
 
+export async function init() {
+  return {};
+}
+
 export default {
+  init,
   getInfo,
   getFunctionPage,
   getLatestData,

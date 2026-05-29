@@ -1,4 +1,30 @@
-import type { PluginErrorCode } from "../domain/types";
+import type { PluginErrorCode, PluginErrorDetails } from "../domain/types";
+
+function formatDetails(details?: PluginErrorDetails): string {
+  if (!details || typeof details !== "object" || Array.isArray(details)) {
+    return "";
+  }
+
+  const entries = Object.entries(details).filter(([, value]) => value !== undefined);
+  if (!entries.length) {
+    return "";
+  }
+
+  try {
+    return JSON.stringify(Object.fromEntries(entries));
+  } catch {
+    return "";
+  }
+}
+
+function formatMessage(message: string, details?: PluginErrorDetails): string {
+  const normalizedMessage = String(message ?? "").trim() || "Unknown plugin error";
+  const detailsText = formatDetails(details);
+  if (!detailsText) {
+    return normalizedMessage;
+  }
+  return `${normalizedMessage} | details=${detailsText}`;
+}
 
 export class PluginError extends Error {
   public readonly source = "ehentai";
@@ -7,29 +33,29 @@ export class PluginError extends Error {
     public readonly code: PluginErrorCode,
     message: string,
     public readonly retryable: boolean,
-    public readonly causeValue?: unknown,
+    public readonly details?: PluginErrorDetails,
   ) {
-    super(message);
+    super(formatMessage(message, details));
     this.name = "PluginError";
   }
 }
 
-export function validationError(message: string, causeValue?: unknown): PluginError {
-  return new PluginError("VALIDATION_ERROR", message, false, causeValue);
+export function validationError(message: string, details?: PluginErrorDetails): PluginError {
+  return new PluginError("VALIDATION_ERROR", message, false, details);
 }
 
-export function networkError(message: string, causeValue?: unknown, retryable = true): PluginError {
-  return new PluginError("NETWORK_ERROR", message, retryable, causeValue);
+export function networkError(message: string, details?: PluginErrorDetails, retryable = true): PluginError {
+  return new PluginError("NETWORK_ERROR", message, retryable, details);
 }
 
-export function upstreamBlockedError(message: string, causeValue?: unknown): PluginError {
-  return new PluginError("UPSTREAM_BLOCKED", message, false, causeValue);
+export function upstreamBlockedError(message: string, details?: PluginErrorDetails): PluginError {
+  return new PluginError("UPSTREAM_BLOCKED", message, false, details);
 }
 
-export function parseError(message: string, causeValue?: unknown): PluginError {
-  return new PluginError("PARSE_ERROR", message, false, causeValue);
+export function parseError(message: string, details?: PluginErrorDetails): PluginError {
+  return new PluginError("PARSE_ERROR", message, false, details);
 }
 
-export function contractError(message: string, causeValue?: unknown): PluginError {
-  return new PluginError("CONTRACT_ERROR", message, false, causeValue);
+export function contractError(message: string, details?: PluginErrorDetails): PluginError {
+  return new PluginError("CONTRACT_ERROR", message, false, details);
 }

@@ -95,3 +95,5 @@ export type PluginErrorCode =
   | "UPSTREAM_BLOCKED"
   | "PARSE_ERROR"
   | "CONTRACT_ERROR";
+
+export type PluginErrorDetails = Record<string, unknown>;
