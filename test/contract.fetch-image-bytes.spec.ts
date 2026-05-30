@@ -1,19 +1,11 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { fetchImageBytes } from "../src/index";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 import { httpClient } from "../src/network/client";
-import type { NativeApi } from "../types/runtime-globals";
 
 describe("fetchImageBytes contract", () => {
-  beforeEach(() => {
-    globalThis.native = {
-      put: vi.fn<NativeApi["put"]>().mockResolvedValue(77),
-    } as unknown as NativeApi;
-  });
-
   afterEach(() => {
     vi.restoreAllMocks();
-    delete (globalThis as { native?: unknown }).native;
   });
 
   test("test_fetchImageBytes_valid_media_url_puts_bytes_into_native_buffer", async () => {
@@ -26,8 +18,7 @@ describe("fetchImageBytes contract", () => {
     });
 
     expect(getBytesSpy).toHaveBeenCalledWith("https://s.exhentai.org/t/aa/bb/cc.jpg", 3200);
-    expect(globalThis.native.put).toHaveBeenCalledWith(bytes);
-    expect(result).toEqual({ nativeBufferId: 77 });
+    expect(result).toEqual(bytes);
   });
 
   test("test_fetchImageBytes_hath_network_media_url_is_allowed", async () => {
@@ -37,7 +28,7 @@ describe("fetchImageBytes contract", () => {
       url: "https://a123.b456.hath.network/h/0011223344-1",
     });
 
-    expect(result.nativeBufferId).toBe(77);
+    expect(result).toEqual(new Uint8Array([9]));
   });
 
   test("test_fetchImageBytes_disallowed_media_host_returns_validation_error", async () => {
@@ -70,7 +61,6 @@ describe("fetchImageBytes contract", () => {
 
     expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1");
     expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined);
-    expect(globalThis.native.put).toHaveBeenCalledWith(bytes);
-    expect(result.nativeBufferId).toBe(77);
+    expect(result).toEqual(bytes);
   });
 });

@@ -94,7 +94,8 @@ describe("site routing behavior", () => {
     getTextSpy.mockResolvedValueOnce(`
       <div id="i3"><img id="img" src="https://ehgt.org/full/1.jpg" /></div>
     `);
-    getBytesSpy.mockResolvedValueOnce(new Uint8Array([1, 2, 3]));
+    const bytes = new Uint8Array([1, 2, 3]);
+    getBytesSpy.mockResolvedValueOnce(bytes);
 
     const deferred = new URL(`https://e-hentai.org${DEFERRED_IMAGE_PATH}`);
     const result = await fetchImageBytes({
@@ -106,7 +107,7 @@ describe("site routing behavior", () => {
       },
     });
 
-    expect(result.nativeBufferId).toBe(99);
+    expect(result).toEqual(bytes);
     expect(getTextSpy).toHaveBeenCalledTimes(2);
     expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe("https://e-hentai.org/s/a1/123-1");
     expect(String(getTextSpy.mock.calls[1]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
@@ -159,7 +160,8 @@ describe("site routing behavior", () => {
     getTextSpy.mockResolvedValueOnce(`
       <div id="i3"><img id="img" src="https://ehgt.org/full/1.jpg" /></div>
     `);
-    getBytesSpy.mockResolvedValueOnce(new Uint8Array([7, 8, 9]));
+    const bytes = new Uint8Array([7, 8, 9]);
+    getBytesSpy.mockResolvedValueOnce(bytes);
 
     const deferred = new URL(`https://e-hentai.org${DEFERRED_IMAGE_PATH}`);
     const result = await fetchImageBytes({
@@ -172,7 +174,7 @@ describe("site routing behavior", () => {
       },
     });
 
-    expect(result.nativeBufferId).toBe(99);
+    expect(result).toEqual(bytes);
     expect(getTextSpy).toHaveBeenCalledTimes(1);
     expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
   });
