@@ -196,10 +196,6 @@ export type ReadSnapshotContract = {
   };
 };
 
-export type FetchImageBytesContract = {
-  nativeBufferId: number;
-};
-
 export type SettingsBundleContract = {
   source: string;
   scheme: {

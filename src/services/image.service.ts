@@ -1,6 +1,4 @@
-import { runtime } from "../../types/runtime-api";
 import { DEFERRED_IMAGE_PATH } from "../domain/constants";
-import type { FetchImageBytesContract } from "../domain/contracts";
 import type { FetchImageBytesPayload, PluginSettings } from "../domain/types";
 import { contractError, PluginError } from "../errors/plugin-error";
 import { httpClient } from "../network/client";
@@ -18,16 +16,6 @@ import {
   remapGalleryHostForSite,
   type RequestConfig,
 } from "./site-routing.service";
-
-function normalizeNativeBufferId(value: unknown): number {
-  const nativeBufferId = Number(value);
-  if (!Number.isInteger(nativeBufferId) || nativeBufferId < 0) {
-    throw contractError("invalid native buffer id", {
-      value,
-    });
-  }
-  return nativeBufferId;
-}
 
 async function resolveImageUrlFromImagePage(
   imagePageHref: string,
@@ -92,7 +80,7 @@ function isDeferredPlaceholderUrl(rawUrl: string): boolean {
 export async function fetchImageBytesService(
   payload: FetchImageBytesPayload,
   settings: PluginSettings,
-): Promise<FetchImageBytesContract> {
+) {
   const rawUrl = requiredString(payload.url, "url");
   const deferredImagePageHref = readDeferredImagePageHref(payload, rawUrl);
   const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
@@ -119,10 +107,7 @@ export async function fetchImageBytesService(
       const imageBytes = attempt.requestConfig
         ? await httpClient.getBytes(imageUrl, payload.timeoutMs, attempt.requestConfig)
         : await httpClient.getBytes(imageUrl, payload.timeoutMs);
-      const nativeBufferId = await runtime.native.put(imageBytes);
-      return {
-        nativeBufferId: normalizeNativeBufferId(nativeBufferId),
-      };
+      return imageBytes;
     } catch (error) {
       lastError = error;
     }

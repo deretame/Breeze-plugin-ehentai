@@ -7,7 +7,6 @@ import {
 import type {
   ChapterContentContract,
   ComicDetailContract,
-  FetchImageBytesContract,
   InfoContract,
   ReadSnapshotContract,
   SearchResultContract,
@@ -142,9 +141,7 @@ export async function getReadSnapshot(payload: ChapterPayload = {}): Promise<Rea
   }
 }
 
-export async function fetchImageBytes(
-  payload: FetchImageBytesPayload = {},
-): Promise<FetchImageBytesContract> {
+export async function fetchImageBytes(payload: FetchImageBytesPayload = {}) {
   try {
     const settings = await readSettings(payload.extern);
     return await fetchImageBytesService(payload, settings);

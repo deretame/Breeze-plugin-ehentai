@@ -74,12 +74,13 @@ function downloadFile(url) {
     response.on("data", (chunk) => (rawData += chunk));
     response.on("end", () => {
       try {
-        JSON.parse(rawData);
+        const parsed = JSON.parse(rawData);
+        const trimmed = stripFields(parsed, new Set(["intro", "links"]));
 
         if (!fs.existsSync(TARGET_DIR)) {
           fs.mkdirSync(TARGET_DIR, { recursive: true });
         }
-        const finalContent = `export const data = ${rawData};\n`;
+        const finalContent = `export const data = ${JSON.stringify(trimmed, null, 2)};\n`;
 
         fs.writeFileSync(OUTPUT_FILE, finalContent, "utf8");
         console.log(`\n✅ 处理完成！`);
@@ -90,4 +91,24 @@ function downloadFile(url) {
       }
     });
   }
+}
+
+function stripFields(value, keysToRemove) {
+  if (Array.isArray(value)) {
+    return value.map((item) => stripFields(item, keysToRemove));
+  }
+
+  if (!value || typeof value !== "object") {
+    return value;
+  }
+
+  const result = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (keysToRemove.has(key)) {
+      continue;
+    }
+    result[key] = stripFields(child, keysToRemove);
+  }
+
+  return result;
 }
