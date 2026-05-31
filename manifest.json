@@ -7,7 +7,7 @@
     "describe": ""
   },
   "describe": "e-hentai minimal reader plugin",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "home": "https://github.com/deretame/Breeze-plugin-ehentai",
   "updateUrl": "https://api.github.com/repos/deretame/Breeze-plugin-ehentai/releases/latest",
   "npmName": "breeze-plugin-ehentai",
@@ -21,11 +21,14 @@
           "scene": {
             "title": "最新",
             "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
-            "list": {
-              "fnPath": "getLatestData",
-              "core": {},
-              "extern": {
-                "source": "latest"
+            "body": {
+              "type": "pluginPagedComicList",
+              "request": {
+                "fnPath": "getLatestData",
+                "core": {},
+                "extern": {
+                  "source": "latest"
+                }
               }
             }
           }
@@ -41,11 +44,14 @@
           "scene": {
             "title": "热门",
             "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
-            "list": {
-              "fnPath": "getPopularData",
-              "core": {},
-              "extern": {
-                "source": "popular"
+            "body": {
+              "type": "pluginPagedComicList",
+              "request": {
+                "fnPath": "getPopularData",
+                "core": {},
+                "extern": {
+                  "source": "popular"
+                }
               }
             }
           }
@@ -61,12 +67,15 @@
           "scene": {
             "title": "排行榜",
             "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
-            "list": {
-              "fnPath": "getRankingData",
-              "core": {},
-              "extern": {
-                "source": "ranking",
-                "rankType": "day"
+            "body": {
+              "type": "pluginPagedComicList",
+              "request": {
+                "fnPath": "getRankingData",
+                "core": {},
+                "extern": {
+                  "source": "ranking",
+                  "rankType": "day"
+                }
               }
             },
             "filter": {
