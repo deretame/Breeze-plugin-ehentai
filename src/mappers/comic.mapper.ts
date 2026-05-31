@@ -1,6 +1,6 @@
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { SearchResultContract } from "../domain/contracts";
 import type { SearchParsed, SearchComicPayload } from "../domain/types";
+import { SearchResultContract } from "../../types/type";
 import { buildMediaPath } from "../utils/media-path";
 import { sanitizeMediaUrl } from "../utils/url";
 
@@ -19,7 +19,7 @@ export function mapSearchResult(
   return {
     source: PLUGIN_SOURCE,
     extern,
-    scheme: { version: "1.0.0", type: "searchResult" },
+    scheme: { version: "1.0.0", type: "searchResult", source: PLUGIN_SOURCE, list: "" },
     data: {
       paging: {
         page: currentPage,
@@ -41,12 +41,21 @@ export function mapSearchResult(
           cover: {
             id: item.id,
             url: coverUrl,
+            name: "",
             path: buildMediaPath(item.id, coverUrl),
             extern: {},
           },
           metadata: [
-            { type: "category", name: "Category", value: item.category ? [item.category] : [] },
-            { type: "uploader", name: "Uploader", value: item.uploader ? [item.uploader] : [] },
+            {
+              type: "category",
+              name: "Category",
+              value: item.category ? [{ name: item.category, onTap: {}, extern: {} }] : [],
+            },
+            {
+              type: "uploader",
+              name: "Uploader",
+              value: item.uploader ? [{ name: item.uploader, onTap: {}, extern: {} }] : [],
+            },
           ],
           raw: {
             href: item.href,
@@ -58,5 +67,50 @@ export function mapSearchResult(
         };
       }),
     },
+    paging: {
+      page: currentPage,
+      pages,
+      total: parsed.total,
+      hasReachedMax: !parsed.hasNext,
+    },
+    items: parsed.items.map((item) => {
+      const coverUrl = sanitizeMediaUrl(item.coverUrl);
+      return {
+        source: PLUGIN_SOURCE,
+        id: item.id,
+        title: item.title,
+        subtitle: item.category,
+        finished: false,
+        likesCount: 0,
+        viewsCount: 0,
+        updatedAt: "",
+        cover: {
+          id: item.id,
+          url: coverUrl,
+          name: "",
+          path: buildMediaPath(item.id, coverUrl),
+          extern: {},
+        },
+        metadata: [
+          {
+            type: "category",
+            name: "Category",
+            value: item.category ? [{ name: item.category, onTap: {}, extern: {} }] : [],
+          },
+          {
+            type: "uploader",
+            name: "Uploader",
+            value: item.uploader ? [{ name: item.uploader, onTap: {}, extern: {} }] : [],
+          },
+        ],
+        raw: {
+          href: item.href,
+        },
+        extern: {
+          href: item.href,
+          uploader: item.uploader,
+        },
+      };
+    }),
   };
 }

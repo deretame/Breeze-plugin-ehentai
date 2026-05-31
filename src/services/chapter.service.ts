@@ -1,4 +1,4 @@
-import type { ChapterContentContract } from "../domain/contracts";
+import type { ChapterContentContract } from "../../types/type";
 import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { mapChapterContent } from "../mappers/chapter.mapper";

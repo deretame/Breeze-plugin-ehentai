@@ -1,9 +1,9 @@
 import { DEFAULT_SETTINGS, EH_FORUM_COOKIE_CONFIG_KEY, EX_BASE_URL } from "../domain/constants";
-import type { SettingsBundleContract } from "../domain/contracts";
 import type { PluginSettings, SiteSetting } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
 import { flutterTools, pluginConfig } from "../tools";
+import { SettingsBundleContract } from "../../types/type";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);

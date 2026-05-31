@@ -1,6 +1,6 @@
 import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
-import type { ComicDetailContract } from "../domain/contracts";
 import type { DetailParsed } from "../domain/types";
+import { ComicDetailContract } from "../../types/type";
 import {
   buildGalleryChunkId,
   buildGalleryChunkExtern,
@@ -142,17 +142,13 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
     source: PLUGIN_SOURCE,
     comicId,
     extern: {},
-    scheme: { version: "1.0.0", type: "comicDetail" },
+    scheme: { version: "1.0.0", type: "comicDetail", source: PLUGIN_SOURCE },
     data: {
       normal: {
         comicInfo: {
-          source: PLUGIN_SOURCE,
           id: comicId,
           title: detail.title,
-          subtitle: detail.category ?? "",
           description: "",
-          likesCount: 0,
-          viewsCount: 0,
           cover: {
             id: comicId,
             url: coverUrl,
@@ -163,7 +159,6 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
           creator: {
             id: "",
             name: "",
-            subtitle: "",
             avatar: {
               id: "",
               url: "",
@@ -196,8 +191,8 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
         isFavourite: false,
         isLiked: false,
         allowComments: false,
-        allowLike: true,
-        allowCollected: true,
+        allowLike: false,
+        allowCollected: false,
         allowDownload: true,
         extern: {},
       },

@@ -8,11 +8,11 @@ import {
   PLUGIN_UUID,
   PLUGIN_VERSION,
 } from "../domain/constants";
-import type { InfoContract } from "../domain/contracts";
+import type { InfoContract } from "../../types/type";
 
 function buildComicListScene(input: {
   title: string;
-  list: {
+  request: {
     fnPath: string;
     core?: Record<string, unknown>;
     extern?: Record<string, unknown>;
@@ -26,10 +26,13 @@ function buildComicListScene(input: {
   return {
     title: input.title,
     source: PLUGIN_UUID,
-    list: {
-      fnPath: input.list.fnPath,
-      core: input.list.core ?? {},
-      extern: input.list.extern ?? {},
+    body: {
+      type: "pluginPagedComicList" as const,
+      request: {
+        fnPath: input.request.fnPath,
+        core: input.request.core ?? {},
+        extern: input.request.extern ?? {},
+      },
     },
     ...(input.filter
       ? {
@@ -63,7 +66,7 @@ export function mapInfo(): InfoContract {
           payload: {
             scene: buildComicListScene({
               title: "最新",
-              list: {
+              request: {
                 fnPath: "getLatestData",
                 extern: { source: "latest" },
               },
@@ -79,7 +82,7 @@ export function mapInfo(): InfoContract {
           payload: {
             scene: buildComicListScene({
               title: "热门",
-              list: {
+              request: {
                 fnPath: "getPopularData",
                 extern: { source: "popular" },
               },
@@ -95,7 +98,7 @@ export function mapInfo(): InfoContract {
           payload: {
             scene: buildComicListScene({
               title: "排行榜",
-              list: {
+              request: {
                 fnPath: "getRankingData",
                 extern: { source: "ranking", rankType: "day" },
               },

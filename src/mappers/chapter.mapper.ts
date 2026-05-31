@@ -1,5 +1,5 @@
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { ChapterContentContract } from "../domain/contracts";
+import type { ChapterContentContract } from "../../types/type";
 import type { GalleryChunk } from "../utils/chunk";
 import {
   buildGalleryChunkExtern,
@@ -51,7 +51,10 @@ export function mapChapterContent(
 
   return {
     source: PLUGIN_SOURCE,
+    comicId,
+    chapterId,
     extern: chapterExtern,
+    scheme: { version: "1.0.0", type: "chapterContent", source: PLUGIN_SOURCE },
     data: {
       comic: {
         id: comicId,

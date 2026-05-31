@@ -1,9 +1,9 @@
-import type { SearchResultContract } from "../domain/contracts";
 import type { PluginSettings, SearchComicPayload } from "../domain/types";
 import { mapSearchResult } from "../mappers/comic.mapper";
 import { httpClient } from "../network/client";
 import { buildSearchEndpoint, buildSearchNavigationEndpoint } from "../network/endpoints";
 import { parseSearchPage } from "../parsers/search.parser";
+import { SearchResultContract } from "../../types/type";
 import { asRecord, normalizeKeyword, normalizePage } from "../utils/guards";
 import { buildRequestConfig } from "./settings.service";
 

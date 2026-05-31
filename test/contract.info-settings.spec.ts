@@ -18,7 +18,6 @@ describe("info and settings contract", () => {
     expect(canonical.scheme.type).toBe("settings");
     expect(canonical.data.values).toMatchObject({
       site: "EH",
-      imageProxyEnabled: false,
     });
   });
 });

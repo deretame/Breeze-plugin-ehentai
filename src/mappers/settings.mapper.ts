@@ -1,5 +1,5 @@
 import { DEFAULT_SETTINGS, PLUGIN_SOURCE } from "../domain/constants";
-import type { SettingsBundleContract } from "../domain/contracts";
+import type { SettingsBundleContract } from "../../types/type";
 import type { PluginSettings } from "../domain/types";
 
 export function mapSettingsBundle(
@@ -43,7 +43,6 @@ export function mapSettingsBundle(
       canShowUserInfo: false,
       values: {
         site: values.site,
-        imageProxyEnabled: values.imageProxyEnabled,
         forumCookie: values.forumCookie,
       },
     },

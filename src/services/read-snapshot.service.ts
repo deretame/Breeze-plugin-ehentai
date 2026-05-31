@@ -1,5 +1,4 @@
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { ReadSnapshotContract } from "../domain/contracts";
 import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { httpClient } from "../network/client";
@@ -7,6 +6,7 @@ import { buildDetailEndpoint } from "../network/endpoints";
 import { parseDetailPage } from "../parsers/detail.parser";
 import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.parser";
 import { cache } from "../tools";
+import { ReadSnapshotContract } from "../../types/type";
 import { unwrapBridgeValue } from "../utils/bridge-cache";
 import {
   buildGalleryChunkId,

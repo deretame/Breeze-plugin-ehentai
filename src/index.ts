@@ -4,20 +4,6 @@ import {
   EH_FORUM_LOGIN_URL,
   PLUGIN_SOURCE,
 } from "./domain/constants";
-import type {
-  ChapterContentContract,
-  ComicDetailContract,
-  InfoContract,
-  ReadSnapshotContract,
-  SearchResultContract,
-  SettingsBundleContract,
-} from "./domain/contracts";
-import type {
-  ChapterPayload,
-  ComicDetailPayload,
-  FetchImageBytesPayload,
-  SearchComicPayload,
-} from "./domain/types";
 import { normalizeError } from "./errors/normalize-error";
 import { mapSearchResult } from "./mappers/comic.mapper";
 import { httpClient } from "./network/client";
@@ -38,7 +24,28 @@ import {
   sanitizeForumCookie,
   saveForumCookie,
 } from "./services/settings.service";
+import type {
+  AdvancedSearchContract,
+  CapabilitiesBundleContract,
+  ChapterContentContract,
+  ChapterPayload,
+  ComicDetailContract,
+  ComicDetailPayload,
+  ComicPagedListContract,
+  FetchImageBytesPayload,
+  FilterBundleContract,
+  InfoContract,
+  ReadSnapshotContract,
+  SearchResultContract,
+  SettingsBundleContract,
+} from "../types/type";
 import { asRecord } from "./utils/guards";
+
+type SearchComicPayload = {
+  keyword?: string;
+  page?: number;
+  extern?: Record<string, unknown>;
+};
 
 function extractCookieFromPayload(payload: Record<string, unknown>): string {
   const candidates = [
@@ -141,7 +148,9 @@ export async function getReadSnapshot(payload: ChapterPayload = {}): Promise<Rea
   }
 }
 
-export async function fetchImageBytes(payload: FetchImageBytesPayload = {}) {
+export async function fetchImageBytes(
+  payload: FetchImageBytesPayload = {},
+): Promise<Uint8Array<ArrayBufferLike>> {
   try {
     const settings = await readSettings(payload.extern);
     return await fetchImageBytesService(payload, settings);
@@ -182,7 +191,7 @@ function resolveRankTl(rankType: string): number {
 
 export async function getLatestData(
   payload: SearchComicPayload = {},
-): Promise<Record<string, unknown>> {
+): Promise<ComicPagedListContract> {
   return getFunctionPage({
     ...payload,
     extern: { ...payload.extern, source: "latest" },
@@ -191,7 +200,7 @@ export async function getLatestData(
 
 export async function getPopularData(
   payload: SearchComicPayload = {},
-): Promise<Record<string, unknown>> {
+): Promise<ComicPagedListContract> {
   return getFunctionPage({
     ...payload,
     extern: { ...payload.extern, source: "popular" },
@@ -200,7 +209,7 @@ export async function getPopularData(
 
 export async function getRankingData(
   payload: SearchComicPayload = {},
-): Promise<Record<string, unknown>> {
+): Promise<ComicPagedListContract> {
   return getFunctionPage({
     ...payload,
     extern: { ...payload.extern, source: "ranking" },
@@ -209,7 +218,7 @@ export async function getRankingData(
 
 export async function getFunctionPage(
   payload: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
+): Promise<ComicPagedListContract> {
   try {
     const extern = asRecord(payload.extern);
     const source = String(extern.source ?? payload.source ?? "latest")
@@ -251,7 +260,7 @@ export async function getFunctionPage(
 
     return {
       source: PLUGIN_SOURCE,
-      extern: mapped.extern,
+      extern: mapped.extern ?? undefined,
       scheme: {
         version: "1.0.0",
         type: `${source || "latest"}Feed`,
@@ -267,17 +276,17 @@ export async function getFunctionPage(
         raw: {
           page: mapped.data.paging.page,
           pages: mapped.data.paging.pages,
-          nextUrl: mapped.extern.nextUrl,
-          prevUrl: mapped.extern.prevUrl,
+          nextUrl: mapped.extern?.nextUrl ?? "",
+          prevUrl: mapped.extern?.prevUrl ?? "",
         },
       },
-    };
+    } as ComicPagedListContract;
   } catch (error) {
     throw normalizeError(error);
   }
 }
 
-export async function getRankingFilterBundle(): Promise<Record<string, unknown>> {
+export async function getRankingFilterBundle(): Promise<FilterBundleContract> {
   return {
     source: PLUGIN_SOURCE,
     scheme: {
@@ -315,7 +324,7 @@ export async function getRankingFilterBundle(): Promise<Record<string, unknown>>
       ],
     },
     data: {
-      defaults: {
+      values: {
         rankType: "day",
       },
     },
@@ -326,10 +335,12 @@ export async function getSettingsBundle(): Promise<SettingsBundleContract> {
   return getSettingsBundleService();
 }
 
-export async function getCapabilitiesBundle(): Promise<Record<string, unknown>> {
+export async function getCapabilitiesBundle(): Promise<CapabilitiesBundleContract> {
   return {
     source: PLUGIN_SOURCE,
     scheme: {
+      version: "1.0.0" as const,
+      type: "capabilities" as const,
       actions: [
         {
           title: "前往网页登录",
@@ -343,7 +354,7 @@ export async function getCapabilitiesBundle(): Promise<Record<string, unknown>> 
 
 export async function getAdvancedSearchScheme(
   payload: { extern?: Record<string, unknown> } = {},
-): Promise<Record<string, unknown>> {
+): Promise<AdvancedSearchContract> {
   const extern = asRecord(payload.extern);
 
   const boolOr = (value: unknown, fallback: boolean) => {
@@ -379,16 +390,16 @@ export async function getAdvancedSearchScheme(
     ];
   })();
 
-  const result = {
+  return {
     source: PLUGIN_SOURCE,
     scheme: {
-      version: "1.0.0",
-      type: "advancedSearch",
+      version: "1.0.0" as const,
+      type: "advancedSearch" as const,
       title: "高级搜索",
       fields: [
         {
           key: "categories",
-          kind: "multiChoice",
+          kind: "multiChoice" as const,
           label: "分类选择",
           options: [
             { label: "Misc", value: "misc" },
@@ -403,14 +414,14 @@ export async function getAdvancedSearchScheme(
             { label: "Asian Porn", value: "asianporn" },
           ],
         },
-        { key: "f_sh", kind: "switch", label: "搜索 Expunged 内容" },
-        { key: "f_sto", kind: "switch", label: "只看有种子的画廊" },
-        { key: "f_spf", kind: "text", label: "最少页数" },
-        { key: "f_spt", kind: "text", label: "最多页数" },
-        { key: "f_srdd", kind: "text", label: "最低评分" },
-        { key: "f_sfl", kind: "switch", label: "禁用语言过滤" },
-        { key: "f_sfu", kind: "switch", label: "禁用上传者过滤" },
-        { key: "f_sft", kind: "switch", label: "禁用标签过滤" },
+        { key: "f_sh", kind: "switch" as const, label: "搜索 Expunged 内容" },
+        { key: "f_sto", kind: "switch" as const, label: "只看有种子的画廊" },
+        { key: "f_spf", kind: "text" as const, label: "最少页数" },
+        { key: "f_spt", kind: "text" as const, label: "最多页数" },
+        { key: "f_srdd", kind: "text" as const, label: "最低评分" },
+        { key: "f_sfl", kind: "switch" as const, label: "禁用语言过滤" },
+        { key: "f_sfu", kind: "switch" as const, label: "禁用上传者过滤" },
+        { key: "f_sft", kind: "switch" as const, label: "禁用标签过滤" },
       ],
     },
     data: {
@@ -427,7 +438,6 @@ export async function getAdvancedSearchScheme(
       },
     },
   };
-  return result;
 }
 
 export async function startEhentaiWebLogin(

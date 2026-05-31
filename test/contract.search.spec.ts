@@ -109,7 +109,7 @@ describe("search contract", () => {
     const result = await searchComic({ keyword: "keqing", page: 1 });
     expect(result.data.paging.hasReachedMax).toBe(false);
     expect(result.data.paging.page).toBe(1);
-    expect(result.extern.nextUrl).toContain("next=3779110");
+    expect(result.extern?.nextUrl).toContain("next=3779110");
   });
 
   test("test_searchComic_searchnav_dnext_span_marks_reached_max", async () => {
@@ -130,7 +130,7 @@ describe("search contract", () => {
     const result = await searchComic({ keyword: "keqing", page: 99 });
     expect(result.data.paging.hasReachedMax).toBe(true);
     expect(result.data.paging.page).toBe(99);
-    expect(result.extern.nextUrl).toBe("");
+    expect(result.extern?.nextUrl).toBe("");
   });
 
   test("test_searchComic_page2_uses_extern_next_url_instead_of_page_param", async () => {
