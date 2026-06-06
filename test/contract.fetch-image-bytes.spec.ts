@@ -1,16 +1,16 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, rs } from "@rstest/core";
 import { fetchImageBytes } from "../src/index";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 import { httpClient } from "../src/network/client";
 
 describe("fetchImageBytes contract", () => {
   afterEach(() => {
-    vi.restoreAllMocks();
+    rs.restoreAllMocks();
   });
 
   test("test_fetchImageBytes_valid_media_url_puts_bytes_into_native_buffer", async () => {
     const bytes = new Uint8Array([1, 2, 3, 4]);
-    const getBytesSpy = vi.spyOn(httpClient, "getBytes").mockResolvedValueOnce(bytes);
+    const getBytesSpy = rs.spyOn(httpClient, "getBytes").mockResolvedValueOnce(bytes);
 
     const result = await fetchImageBytes({
       url: "https://s.exhentai.org/t/aa/bb/cc.jpg",
@@ -22,7 +22,7 @@ describe("fetchImageBytes contract", () => {
   });
 
   test("test_fetchImageBytes_hath_network_media_url_is_allowed", async () => {
-    vi.spyOn(httpClient, "getBytes").mockResolvedValueOnce(new Uint8Array([9]));
+    rs.spyOn(httpClient, "getBytes").mockResolvedValueOnce(new Uint8Array([9]));
 
     const result = await fetchImageBytes({
       url: "https://a123.b456.hath.network/h/0011223344-1",
@@ -43,8 +43,8 @@ describe("fetchImageBytes contract", () => {
 
   test("test_fetchImageBytes_deferred_url_resolves_image_page_then_downloads_bytes", async () => {
     const bytes = new Uint8Array([9, 8, 7]);
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    const getBytesSpy = vi.spyOn(httpClient, "getBytes");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    const getBytesSpy = rs.spyOn(httpClient, "getBytes");
     getTextSpy.mockResolvedValueOnce(`
       <div id="i3"><img id="img" src="https://ehgt.org/full/1.jpg" /></div>
       <a id="loadfail" onclick="return nl('WZG-474997')">reload</a>

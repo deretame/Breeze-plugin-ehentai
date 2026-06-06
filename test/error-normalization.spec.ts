@@ -1,5 +1,5 @@
 import axios from "axios";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "@rstest/core";
 import { normalizeError } from "../src/errors/normalize-error";
 
 describe("error normalization", () => {

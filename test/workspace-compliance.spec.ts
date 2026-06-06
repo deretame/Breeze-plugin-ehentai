@@ -1,6 +1,6 @@
 import { existsSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "@rstest/core";
 
 describe("workspace compliance", () => {
   test("test_implementation_files_exist_only_under_plugin_folder", () => {

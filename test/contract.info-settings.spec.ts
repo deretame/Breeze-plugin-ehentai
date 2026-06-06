@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "@rstest/core";
 import { PLUGIN_UUID } from "../src/domain/constants";
 import { getInfo, getSettingsBundle } from "../src/index";
 

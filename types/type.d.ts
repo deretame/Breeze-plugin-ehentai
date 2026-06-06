@@ -523,6 +523,21 @@ export type ChapterSummary = {
   extern: StringMap;
 };
 
+export type RecommendItem = {
+  source: string;
+  id: string;
+  title: string;
+  subtitle: string;
+  finished: boolean;
+  likesCount: number;
+  viewsCount: number;
+  updatedAt: string;
+  cover: ImageItem;
+  metadata: ActionItem[];
+  raw: StringMap;
+  extern: StringMap;
+};
+
 export type ChapterWithPages = ChapterSummary & {
   pages: ChapterPage[];
 };

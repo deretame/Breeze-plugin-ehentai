@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, rs } from "@rstest/core";
 import { getChapter } from "../src/index";
 import { httpClient } from "../src/network/client";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
@@ -10,7 +10,7 @@ function fixture(name: string): string {
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  rs.restoreAllMocks();
 });
 
 function installInMemoryBridgeCache(): () => void {
@@ -145,7 +145,7 @@ function paginatedThumbnailFixture(
 
 describe("chapter contract", () => {
   test("test_getChapter_valid_payload_returns_ordered_docs", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
 
     const result = await getChapter({
@@ -165,7 +165,7 @@ describe("chapter contract", () => {
   });
 
   test("test_getChapter_first_page_merges_all_thumbnail_pages_for_download", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockImplementation(async (url: string) => {
       if (url.includes("/g/123456/abcdef/") && url.includes("p=1")) {
         return paginatedThumbnailFixture(2, 2, 3, 4, [
@@ -196,7 +196,7 @@ describe("chapter contract", () => {
   });
 
   test("test_getChapter_with_chunk_extern_only_returns_requested_chunk_docs", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockImplementation(async (url: string) => {
       if (url.includes("/g/123456/abcdef/") && url.includes("p=1")) {
         return paginatedThumbnailFixture(2, 2, 3, 4, [
@@ -234,7 +234,7 @@ describe("chapter contract", () => {
   test("test_getChapter_second_request_hits_cache_and_skips_network", async () => {
     const restoreBridge = installInMemoryBridgeCache();
     try {
-      const getTextSpy = vi.spyOn(httpClient, "getText");
+      const getTextSpy = rs.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
 
       const first = await getChapter({ comicId: "123456/abcdef", page: 1 });
@@ -251,7 +251,7 @@ describe("chapter contract", () => {
   test("test_getChapter_wrapped_cache_get_value_still_hits_cache", async () => {
     const restoreBridge = installWrappedInMemoryBridgeCache();
     try {
-      const getTextSpy = vi.spyOn(httpClient, "getText");
+      const getTextSpy = rs.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(fixture("thumbnail-page-1.html"));
 
       await getChapter({ comicId: "123456/abcdef", page: 1 });
@@ -278,7 +278,7 @@ describe("chapter contract", () => {
   });
 
   test("test_getChapter_mpv_href_returns_deferred_image_doc", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(
       thumbnailFixtureWithHrefs(["https://e-hentai.org/mpv/123456/sampletoken#page1"]),
     );

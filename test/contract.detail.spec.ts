@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, rs } from "@rstest/core";
 import { getComicDetail } from "../src/index";
 import { httpClient } from "../src/network/client";
 
@@ -9,12 +9,12 @@ function fixture(name: string): string {
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  rs.restoreAllMocks();
 });
 
 describe("detail contract", () => {
   test("test_getComicDetail_valid_comicId_returns_detail_with_eps", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("detail.html"));
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("detail.html"));
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.scheme.type).toBe("comicDetail");
@@ -80,7 +80,7 @@ describe("detail contract", () => {
       "https://ehgt.org/c/detail-cover.jpg",
       "http://attacker.test/cover.jpg",
     );
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(poisonedHtml);
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(poisonedHtml);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.data.normal.comicInfo.cover.url).toBe("");
@@ -98,7 +98,7 @@ describe("detail contract", () => {
       `<div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>`,
       `<div id="gd1"><div style="background-image:url('https://s.exhentai.org/t/detail-cover.jpg')"></div></div>`,
     );
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(styledHtml);
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(styledHtml);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.data.normal.comicInfo.cover.url).toBe(
@@ -108,7 +108,7 @@ describe("detail contract", () => {
   });
 
   test("test_getComicDetail_disowned_favorited_rating_mapped_into_titleMeta", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
       <div id="gn">Sample</div>
       <div id="gdc"><div class="cs">Misc</div></div>
@@ -136,7 +136,7 @@ describe("detail contract", () => {
   });
 
   test("test_getComicDetail_taglist_rows_mapped_to_clickable_metadata", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
       <div id="gn">Sample</div>
       <div id="gdc"><div class="cs">Misc</div></div>
@@ -175,7 +175,7 @@ describe("detail contract", () => {
   });
 
   test("test_getComicDetail_title_prefers_chinese_over_japanese_and_english", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
       <div id="gn">刻晴与旅行者</div>
       <div id="gj">けいせい</div>
@@ -201,7 +201,7 @@ describe("detail contract", () => {
   });
 
   test("test_getComicDetail_large_gallery_is_split_into_chunked_eps", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
       <div id="gn">Large Gallery</div>
       <div id="gdc"><div class="cs">Manga</div></div>

@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, rs } from "@rstest/core";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 import {
   fetchImageBytes,
@@ -19,12 +19,12 @@ function fixture(name: string): string {
 describe("site routing behavior", () => {
   beforeEach(() => {
     globalThis.native = {
-      put: vi.fn<NativeApi["put"]>().mockResolvedValue(99),
+      put: rs.fn<NativeApi["put"]>().mockResolvedValue(99),
     } as unknown as NativeApi;
   });
 
   afterEach(() => {
-    vi.restoreAllMocks();
+    rs.restoreAllMocks();
     delete (globalThis as { native?: unknown }).native;
   });
 
@@ -40,7 +40,7 @@ describe("site routing behavior", () => {
   });
 
   test("test_getComicDetail_ex_prefers_eh_first_without_igneous", async () => {
-    const getTextSpy = vi
+    const getTextSpy = rs
       .spyOn(httpClient, "getText")
       .mockResolvedValueOnce(fixture("detail.html"));
 
@@ -63,7 +63,7 @@ describe("site routing behavior", () => {
   });
 
   test("test_getComicDetail_ex_empty_eh_then_fallback_to_ex", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce("   ");
     getTextSpy.mockResolvedValueOnce(fixture("detail.html"));
 
@@ -88,8 +88,8 @@ describe("site routing behavior", () => {
   });
 
   test("test_fetchImageBytes_ex_try_eh_then_fallback_ex", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    const getBytesSpy = vi.spyOn(httpClient, "getBytes");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    const getBytesSpy = rs.spyOn(httpClient, "getBytes");
     getTextSpy.mockResolvedValueOnce("<html></html>");
     getTextSpy.mockResolvedValueOnce(`
       <div id="i3"><img id="img" src="https://ehgt.org/full/1.jpg" /></div>
@@ -119,7 +119,7 @@ describe("site routing behavior", () => {
   });
 
   test("test_getChapter_with_ehUnavailable_extern_skips_eh_probe", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(`
       <div class="gtb"><p class="gpc">Showing 1 - 1 of 1 images</p></div>
       <div class="ptds"><a>1</a></div>
@@ -155,8 +155,8 @@ describe("site routing behavior", () => {
   });
 
   test("test_fetchImageBytes_with_ehUnavailable_extern_uses_ex_directly", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
-    const getBytesSpy = vi.spyOn(httpClient, "getBytes");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    const getBytesSpy = rs.spyOn(httpClient, "getBytes");
     getTextSpy.mockResolvedValueOnce(`
       <div id="i3"><img id="img" src="https://ehgt.org/full/1.jpg" /></div>
     `);
@@ -180,7 +180,7 @@ describe("site routing behavior", () => {
   });
 
   test("test_getRankingData_ex_falls_back_to_eh_for_toplist", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
+    const getTextSpy = rs.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
 
     await getRankingData({
       extern: {

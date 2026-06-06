@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "@rstest/core";
 import { ensureAllowedMediaUrl, sanitizeMediaUrl } from "../src/utils/url";
 
 describe("media host policy", () => {

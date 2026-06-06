@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "@rstest/core";
 import { buildSafeRequestConfig } from "../src/network/client";
 
 describe("network client redirect security", () => {

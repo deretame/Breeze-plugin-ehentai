@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test, rs } from "@rstest/core";
 import { getChapter, getComicDetail, searchComic } from "../src/index";
 import { httpClient } from "../src/network/client";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
@@ -11,7 +11,7 @@ function fixture(name: string): string {
 
 describe("integration smoke", () => {
   test("test_search_to_detail_to_chapter_flow_returns_stable_contracts", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
 
     getTextSpy.mockResolvedValueOnce(fixture("search.html"));
     getTextSpy.mockResolvedValueOnce(fixture("detail.html"));

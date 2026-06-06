@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, rs } from "@rstest/core";
 import { getReadSnapshot } from "../src/index";
 import { httpClient } from "../src/network/client";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
@@ -46,7 +46,7 @@ function thumbnailPageFixture(currentPage: number, totalImages = 2000, pageSize 
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  rs.restoreAllMocks();
 });
 
 function installInMemoryBridgeCache(): () => void {
@@ -93,7 +93,7 @@ function installInMemoryBridgeCache(): () => void {
 
 describe("read snapshot contract", () => {
   test("test_getReadSnapshot_returns_comic_chapter_and_deferred_page_urls", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(firstSnapshotPageFixture());
 
     const result = await getReadSnapshot({ comicId: "123456/abcdef", chapterId: "123456/abcdef" });
@@ -144,7 +144,7 @@ describe("read snapshot contract", () => {
   test("test_getReadSnapshot_second_request_hits_cache_and_skips_network", async () => {
     const restoreBridge = installInMemoryBridgeCache();
     try {
-      const getTextSpy = vi.spyOn(httpClient, "getText");
+      const getTextSpy = rs.spyOn(httpClient, "getText");
       getTextSpy.mockResolvedValueOnce(firstSnapshotPageFixture());
 
       const payload = {
@@ -168,7 +168,7 @@ describe("read snapshot contract", () => {
   });
 
   test("test_getReadSnapshot_chunk_extern_loads_only_requested_200_page_window", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText").mockImplementation(async (url) => {
+    const getTextSpy = rs.spyOn(httpClient, "getText").mockImplementation(async (url) => {
       const href = String(url);
       if (!href.includes("?p=")) {
         return thumbnailPageFixture(1);

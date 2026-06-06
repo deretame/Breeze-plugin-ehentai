@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, rs } from "@rstest/core";
 import { httpClient } from "../src/network/client";
 import { flutterTools, pluginConfig } from "../src/tools";
 import { readSettings, resetExAccessProbeCache } from "../src/services/settings.service";
@@ -8,12 +8,12 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  rs.restoreAllMocks();
 });
 
 describe("settings exhentai igneous redirect flow", () => {
   test("test_readSettings_ex_cookie_with_igneous_skip_probe", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta");
+    const getMetaSpy = rs.spyOn(httpClient, "getTextWithMeta");
 
     const settings = await readSettings({
       site: "EX",
@@ -25,13 +25,13 @@ describe("settings exhentai igneous redirect flow", () => {
   });
 
   test("test_readSettings_ex_cookie_without_ex_access_removes_igneous", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
+    const getMetaSpy = rs.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
       status: 200,
       data: "",
       headers: {},
     });
-    const saveSpy = vi.spyOn(pluginConfig, "save").mockResolvedValue("");
-    const toastSpy = vi.spyOn(flutterTools, "showToast").mockResolvedValue("");
+    const saveSpy = rs.spyOn(pluginConfig, "save").mockResolvedValue("");
+    const toastSpy = rs.spyOn(flutterTools, "showToast").mockResolvedValue("");
 
     const settings = await readSettings({
       site: "EX",
@@ -48,7 +48,7 @@ describe("settings exhentai igneous redirect flow", () => {
   });
 
   test("test_readSettings_ex_cookie_empty_ex_home_marks_access_denied_cache", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
+    const getMetaSpy = rs.spyOn(httpClient, "getTextWithMeta").mockResolvedValue({
       status: 200,
       data: "",
       headers: {},
@@ -69,7 +69,7 @@ describe("settings exhentai igneous redirect flow", () => {
   });
 
   test("test_readSettings_ex_cookie_follow_redirects_and_extract_igneous", async () => {
-    const getMetaSpy = vi.spyOn(httpClient, "getTextWithMeta");
+    const getMetaSpy = rs.spyOn(httpClient, "getTextWithMeta");
     getMetaSpy
       .mockResolvedValueOnce({
         status: 302,

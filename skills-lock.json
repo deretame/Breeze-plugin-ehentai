@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "migrate-to-rstest": {
+      "source": "rstackjs/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/migrate-to-rstest/SKILL.md",
+      "computedHash": "e27c0ab42d6a9eb1989dc3b7d97265880976f74d0da89540daa5b281280e62f5"
+    }
+  }
+}

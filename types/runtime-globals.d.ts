@@ -1,5 +1,3 @@
-export {};
-
 export type NativeChainStep = string | { op: string; extraInputId?: number };
 
 export interface FsApi {

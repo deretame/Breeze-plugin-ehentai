@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, describe, expect, test, rs } from "@rstest/core";
 import { searchComic } from "../src/index";
 import { httpClient } from "../src/network/client";
 
@@ -9,12 +9,12 @@ function fixture(name: string): string {
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
+  rs.restoreAllMocks();
 });
 
 describe("search contract", () => {
   test("test_searchComic_valid_keyword_returns_search_result", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
 
     const result = await searchComic({ keyword: "artist:a", page: 1 });
     expect(result.scheme.type).toBe("searchResult");
@@ -29,7 +29,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_invalid_cover_url_returns_empty_cover_url", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <table class="itg">
         <tr>
           <td class="gl3c glname">
@@ -46,7 +46,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_empty_result_returns_success_envelope", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce("<div class='itg'></div>");
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce("<div class='itg'></div>");
 
     const result = await searchComic({ keyword: "nohit" });
     expect(result.scheme.type).toBe("searchResult");
@@ -61,7 +61,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_lazy_image_placeholder_uses_data_src_cover", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <table class="itg gltc">
         <tbody>
           <tr>
@@ -92,7 +92,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_searchnav_dnext_anchor_marks_has_more", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div class="searchnav">
         <div><a id="dnext" href="https://e-hentai.org/?f_search=keqing&amp;next=3779110">Next &gt;</a></div>
       </div>
@@ -113,7 +113,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_searchnav_dnext_span_marks_reached_max", async () => {
-    vi.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div class="searchnav">
         <div><span id="dnext">Next &gt;</span></div>
       </div>
@@ -134,7 +134,7 @@ describe("search contract", () => {
   });
 
   test("test_searchComic_page2_uses_extern_next_url_instead_of_page_param", async () => {
-    const getTextSpy = vi.spyOn(httpClient, "getText");
+    const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(`
       <div class="searchnav">
         <div><span id="dnext">Next &gt;</span></div>
