@@ -33,10 +33,11 @@ describe("site routing behavior", () => {
       cookie: "ipb_member_id=1; igneous=expired; ipb_pass_hash=2",
     });
 
-    const savedCookie = String((result.data as Record<string, unknown>).cookie ?? "");
-    expect(savedCookie).toContain("ipb_member_id=1");
-    expect(savedCookie).toContain("ipb_pass_hash=2");
-    expect(savedCookie).not.toContain("igneous=");
+    const valuesPatch = (result.data as Record<string, unknown>)
+      .valuesPatch as Record<string, string>;
+    expect(valuesPatch.ipb_member_id).toBe("1");
+    expect(valuesPatch.ipb_pass_hash).toBe("2");
+    expect(valuesPatch.igneous).toBe("");
   });
 
   test("test_getComicDetail_ex_prefers_eh_first_without_igneous", async () => {

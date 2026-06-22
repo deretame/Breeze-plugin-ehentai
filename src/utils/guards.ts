@@ -100,7 +100,16 @@ export function validateSettingsInput(input: Record<string, unknown>): PluginSet
       ? input.imageProxyEnabled
       : String(input.imageProxyEnabled ?? "false").toLowerCase() === "true";
 
-  const forumCookie = String(input.forumCookie ?? "").trim();
+  const ipb_member_id = String(input.ipb_member_id ?? "").trim();
+  const ipb_pass_hash = String(input.ipb_pass_hash ?? "").trim();
+  const igneous = String(input.igneous ?? "").trim();
 
-  return { site, imageProxyEnabled, forumCookie };
+  return {
+    site,
+    imageProxyEnabled,
+    ipb_member_id,
+    ipb_pass_hash,
+    igneous,
+    forumCookie: "",
+  };
 }

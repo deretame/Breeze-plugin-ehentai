@@ -18,6 +18,9 @@ describe("info and settings contract", () => {
     expect(canonical.scheme.type).toBe("settings");
     expect(canonical.data.values).toMatchObject({
       site: "EH",
+      ipb_member_id: "",
+      ipb_pass_hash: "",
+      igneous: "",
     });
   });
 });

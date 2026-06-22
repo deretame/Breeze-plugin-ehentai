@@ -1,5 +1,12 @@
-import { DEFAULT_SETTINGS, EH_FORUM_COOKIE_CONFIG_KEY, EX_BASE_URL } from "../domain/constants";
-import type { PluginSettings, SiteSetting } from "../domain/types";
+import {
+  DEFAULT_SETTINGS,
+  EH_FORUM_COOKIE_CONFIG_KEY,
+  EH_IGNEOUS_CONFIG_KEY,
+  EH_MEMBER_ID_CONFIG_KEY,
+  EH_PASS_HASH_CONFIG_KEY,
+  EX_BASE_URL,
+} from "../domain/constants";
+import type { PluginSettings } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
 import { flutterTools, pluginConfig } from "../tools";
@@ -95,7 +102,7 @@ export function removeCookieNames(rawCookie: unknown, cookieNames: string[]): st
     .join("; ");
 }
 
-function findCookieValue(rawCookie: string, name: string): string {
+export function findCookieValue(rawCookie: string, name: string): string {
   const normalized = sanitizeForumCookie(rawCookie);
   if (!normalized) {
     return "";
@@ -202,7 +209,8 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
     }
 
     if (hasUsableIgneous(currentCookie)) {
-      return await saveForumCookie(currentCookie);
+      await saveCookiePart(EH_IGNEOUS_CONFIG_KEY, findCookieValue(currentCookie, "igneous"));
+      return currentCookie;
     }
 
     if (response.status !== 302) {
@@ -219,23 +227,30 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
   return currentCookie;
 }
 
-async function maybeRefreshExhentaiCookie(site: SiteSetting, forumCookie: string): Promise<string> {
-  let normalizedCookie = sanitizeForumCookie(forumCookie);
-  if (site !== "EX" || !normalizedCookie) {
-    return normalizedCookie;
+async function maybeRefreshExhentaiCookie(settings: PluginSettings): Promise<PluginSettings> {
+  const normalizedCookie = sanitizeForumCookie(settings.forumCookie);
+  if (settings.site !== "EX" || !normalizedCookie) {
+    return settings;
   }
 
   if (hasUsableIgneous(normalizedCookie)) {
-    return normalizedCookie;
+    return settings;
   }
   if (exAccessDeniedCached) {
-    return removeCookieNames(normalizedCookie, ["igneous"]);
+    await saveCookiePart(EH_IGNEOUS_CONFIG_KEY, "");
+    return validateSettingsInput({ ...settings, igneous: "" });
   }
   try {
-    return await tryResolveExhentaiIgneous(normalizedCookie);
+    const resolvedCookie = await tryResolveExhentaiIgneous(normalizedCookie);
+    return validateSettingsInput({
+      ...settings,
+      ipb_member_id: findCookieValue(resolvedCookie, "ipb_member_id") || settings.ipb_member_id,
+      ipb_pass_hash: findCookieValue(resolvedCookie, "ipb_pass_hash") || settings.ipb_pass_hash,
+      igneous: findCookieValue(resolvedCookie, "igneous"),
+    });
   } catch (error) {
     console.warn("[EH] EX igneous refresh failed", error);
-    return normalizedCookie;
+    return settings;
   }
 }
 
@@ -332,19 +347,66 @@ async function loadConfigString(key: string, fallback = ""): Promise<string> {
   }
 }
 
-export async function saveForumCookie(rawCookie: unknown): Promise<string> {
-  const cookie = sanitizeForumCookie(rawCookie);
+export function buildForumCookie(parts: {
+  ipb_member_id?: string;
+  ipb_pass_hash?: string;
+  igneous?: string;
+}): string {
+  const pairs = [
+    parts.ipb_member_id ? `ipb_member_id=${parts.ipb_member_id}` : "",
+    parts.ipb_pass_hash ? `ipb_pass_hash=${parts.ipb_pass_hash}` : "",
+    parts.igneous ? `igneous=${parts.igneous}` : "",
+  ].filter(Boolean);
+  return sanitizeForumCookie(pairs.join("; "));
+}
+
+export async function saveCookiePart(key: string, rawValue: unknown): Promise<string> {
+  const value = String(rawValue ?? "").trim();
   try {
-    await pluginConfig.save(EH_FORUM_COOKIE_CONFIG_KEY, cookie);
+    await pluginConfig.save(key, value);
   } catch {
     // In local tests there is no host bridge; keep graceful fallback.
   }
-  return cookie;
+  return value;
 }
 
 export function resetExAccessProbeCache(): void {
   exAccessDeniedCached = false;
   exFallbackNotified = false;
+}
+
+export async function migrateLegacyForumCookieIfNeeded(): Promise<boolean> {
+  const [legacyForumCookie, memberId, passHash, igneous] = await Promise.all([
+    loadConfigString(EH_FORUM_COOKIE_CONFIG_KEY, ""),
+    loadConfigString(EH_MEMBER_ID_CONFIG_KEY, ""),
+    loadConfigString(EH_PASS_HASH_CONFIG_KEY, ""),
+    loadConfigString(EH_IGNEOUS_CONFIG_KEY, ""),
+  ]);
+
+  if (!legacyForumCookie) {
+    return false;
+  }
+  if (memberId || passHash || igneous) {
+    return false;
+  }
+
+  const legacyMemberId = findCookieValue(legacyForumCookie, "ipb_member_id");
+  const legacyPassHash = findCookieValue(legacyForumCookie, "ipb_pass_hash");
+  const legacyIgneous = findCookieValue(legacyForumCookie, "igneous");
+
+  await Promise.all([
+    legacyMemberId ? saveCookiePart(EH_MEMBER_ID_CONFIG_KEY, legacyMemberId) : Promise.resolve(),
+    legacyPassHash ? saveCookiePart(EH_PASS_HASH_CONFIG_KEY, legacyPassHash) : Promise.resolve(),
+    legacyIgneous ? saveCookiePart(EH_IGNEOUS_CONFIG_KEY, legacyIgneous) : Promise.resolve(),
+  ]);
+
+  try {
+    await pluginConfig.save(EH_FORUM_COOKIE_CONFIG_KEY, "");
+  } catch {
+    // ignore clear failure
+  }
+
+  return true;
 }
 
 function readExternString(extern: Record<string, unknown>, key: string): string {
@@ -359,11 +421,14 @@ export async function readSettings(
   options?: { skipExProbe?: boolean },
 ): Promise<PluginSettings> {
   const externMap = asRecord(extern);
-  const [storedSite, storedImageProxyEnabled, storedForumCookie] = await Promise.all([
-    loadConfigString("site", DEFAULT_SETTINGS.site),
-    loadConfigString("imageProxyEnabled", String(DEFAULT_SETTINGS.imageProxyEnabled)),
-    loadConfigString(EH_FORUM_COOKIE_CONFIG_KEY, DEFAULT_SETTINGS.forumCookie),
-  ]);
+  const [storedSite, storedImageProxyEnabled, storedMemberId, storedPassHash, storedIgneous] =
+    await Promise.all([
+      loadConfigString("site", DEFAULT_SETTINGS.site),
+      loadConfigString("imageProxyEnabled", String(DEFAULT_SETTINGS.imageProxyEnabled)),
+      loadConfigString(EH_MEMBER_ID_CONFIG_KEY, DEFAULT_SETTINGS.ipb_member_id),
+      loadConfigString(EH_PASS_HASH_CONFIG_KEY, DEFAULT_SETTINGS.ipb_pass_hash),
+      loadConfigString(EH_IGNEOUS_CONFIG_KEY, DEFAULT_SETTINGS.igneous),
+    ]);
 
   const merged = {
     site: readExternString(externMap, "site") || storedSite,
@@ -371,23 +436,35 @@ export async function readSettings(
       externMap.imageProxyEnabled !== undefined
         ? externMap.imageProxyEnabled
         : storedImageProxyEnabled,
-    forumCookie:
-      readExternString(externMap, EH_FORUM_COOKIE_CONFIG_KEY) ||
-      readExternString(externMap, "cookie") ||
-      storedForumCookie,
+    ipb_member_id: readExternString(externMap, EH_MEMBER_ID_CONFIG_KEY) || storedMemberId,
+    ipb_pass_hash: readExternString(externMap, EH_PASS_HASH_CONFIG_KEY) || storedPassHash,
+    igneous: readExternString(externMap, EH_IGNEOUS_CONFIG_KEY) || storedIgneous,
   };
 
+  // Backward compatibility: legacy extern aggregate cookie overrides parts.
+  const legacyExternCookie =
+    readExternString(externMap, EH_FORUM_COOKIE_CONFIG_KEY) ||
+    readExternString(externMap, "cookie");
+  if (legacyExternCookie) {
+    merged.ipb_member_id =
+      findCookieValue(legacyExternCookie, "ipb_member_id") || merged.ipb_member_id;
+    merged.ipb_pass_hash =
+      findCookieValue(legacyExternCookie, "ipb_pass_hash") || merged.ipb_pass_hash;
+    merged.igneous = findCookieValue(legacyExternCookie, "igneous") || merged.igneous;
+  }
+
   let settings = validateSettingsInput(merged);
-  let forumCookie = settings.forumCookie;
+  settings = { ...settings, forumCookie: buildForumCookie(settings) };
 
   if (!options?.skipExProbe) {
-    forumCookie = await maybeRefreshExhentaiCookie(settings.site, settings.forumCookie);
+    settings = await maybeRefreshExhentaiCookie(settings);
+    settings = { ...settings, forumCookie: buildForumCookie(settings) };
     settings = await fallbackToEhIfExAccessDenied(settings);
   }
 
   return {
     ...settings,
-    forumCookie: sanitizeForumCookie(forumCookie),
+    forumCookie: buildForumCookie(settings),
   };
 }
 

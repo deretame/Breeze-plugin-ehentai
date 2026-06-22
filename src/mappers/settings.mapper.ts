@@ -30,10 +30,22 @@ export function mapSettingsBundle(
             //   label: "图片代理模式",
             // },
             {
-              key: "forumCookie",
+              key: "ipb_member_id",
               kind: "text",
-              label: "Cookie（请复制完整的cookie）",
-              fnPath: "setEhentaiManualCookie",
+              label: "ipb_member_id",
+              fnPath: "setEhentaiIpbMemberId",
+            },
+            {
+              key: "ipb_pass_hash",
+              kind: "text",
+              label: "ipb_pass_hash",
+              fnPath: "setEhentaiIpbPassHash",
+            },
+            {
+              key: "igneous",
+              kind: "text",
+              label: "igneous（里站 cookie，可选）",
+              fnPath: "setEhentaiIgneous",
             },
           ],
         },
@@ -43,7 +55,9 @@ export function mapSettingsBundle(
       canShowUserInfo: false,
       values: {
         site: values.site,
-        forumCookie: values.forumCookie,
+        ipb_member_id: values.ipb_member_id,
+        ipb_pass_hash: values.ipb_pass_hash,
+        igneous: values.igneous,
       },
     },
   };

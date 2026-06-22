@@ -27,6 +27,9 @@ export type SiteSetting = "EH" | "EX";
 export type PluginSettings = {
   site: SiteSetting;
   imageProxyEnabled: boolean;
+  ipb_member_id: string;
+  ipb_pass_hash: string;
+  igneous: string;
   forumCookie: string;
 };
 

@@ -2,7 +2,7 @@ export const PLUGIN_SOURCE = "ehentai";
 export const PLUGIN_UUID = "dba2a6cf-c495-4416-accf-c29263ab4016";
 export const PLUGIN_NAME = "e-hentai";
 export const PLUGIN_DESCRIPTION = "e-hentai minimal reader plugin";
-export const PLUGIN_VERSION = "0.0.21";
+export const PLUGIN_VERSION = "0.0.22";
 export const PLUGIN_ICON_URL = "";
 export const PLUGIN_HOME = "https://github.com/deretame/Breeze-plugin-ehentai";
 export const PLUGIN_UPDATE_URL =
@@ -19,6 +19,9 @@ export const EH_FORUM_LOGIN_URL = "https://forums.e-hentai.org/index.php?act=Log
 export const EH_FORUM_LOGIN_REDIRECT_URL = "https://forums.e-hentai.org/index.php?";
 export const EH_COOKIE_POLL_INTERVAL_MS = 500000;
 export const EH_FORUM_COOKIE_CONFIG_KEY = "forumCookie";
+export const EH_MEMBER_ID_CONFIG_KEY = "ipb_member_id";
+export const EH_PASS_HASH_CONFIG_KEY = "ipb_pass_hash";
+export const EH_IGNEOUS_CONFIG_KEY = "igneous";
 
 export const DEFAULT_TIMEOUT_MS = 12_000;
 export const MAX_RETRY_ATTEMPTS = 2;
@@ -41,6 +44,9 @@ export const ALLOWED_MEDIA_HOSTS = new Set([
 export const DEFAULT_SETTINGS = {
   site: "EH",
   imageProxyEnabled: false,
+  ipb_member_id: "",
+  ipb_pass_hash: "",
+  igneous: "",
   forumCookie: "",
 } as const;
 

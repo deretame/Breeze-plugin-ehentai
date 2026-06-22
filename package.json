@@ -1,8 +1,8 @@
 {
   "name": "breeze-plugin-ehentai",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "type": "module",
-  "packageManager": "pnpm@10.27.0",
+  "packageManager": "pnpm@11.5.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/deretame/Breeze-plugin-ehentai.git"
@@ -26,18 +26,18 @@
     "dev:server": "tsx dev-server.ts"
   },
   "dependencies": {
-    "axios": "^1.15.2",
+    "axios": "^1.18.0",
     "cheerio": "^1.2.0"
   },
   "devDependencies": {
-    "@rspack/cli": "^2.0.0",
-    "@rspack/core": "^2.0.0",
-    "@rstest/core": "0.10.3",
-    "@types/node": "^25.6.0",
+    "@rspack/cli": "^2.0.8",
+    "@rspack/core": "^2.0.8",
+    "@rstest/core": "0.10.6",
+    "@types/node": "^26.0.0",
     "cross-env": "^10.1.0",
-    "oxfmt": "^0.48.0",
-    "oxlint": "^1.63.0",
-    "tsx": "^4.21.0",
+    "oxfmt": "^0.55.0",
+    "oxlint": "^1.70.0",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3"
   }
 }

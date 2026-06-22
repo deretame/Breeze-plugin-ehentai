@@ -1,29 +1,3 @@
-import {
-  EH_COOKIE_POLL_INTERVAL_MS,
-  EH_FORUM_LOGIN_REDIRECT_URL,
-  EH_FORUM_LOGIN_URL,
-  PLUGIN_SOURCE,
-} from "./domain/constants";
-import { normalizeError } from "./errors/normalize-error";
-import { mapSearchResult } from "./mappers/comic.mapper";
-import { httpClient } from "./network/client";
-import { buildSearchNavigationEndpoint } from "./network/endpoints";
-import { parseSearchPage } from "./parsers/search.parser";
-import { getChapterService } from "./services/chapter.service";
-import { getComicDetailService } from "./services/detail.service";
-import { fetchImageBytesService } from "./services/image.service";
-import { getInfoService } from "./services/info.service";
-import { getReadSnapshotService } from "./services/read-snapshot.service";
-import { searchComicService } from "./services/search.service";
-import {
-  buildRequestConfig,
-  getSettingsBundleService,
-  readSettings,
-  removeCookieNames,
-  resetExAccessProbeCache,
-  sanitizeForumCookie,
-  saveForumCookie,
-} from "./services/settings.service";
 import type {
   AdvancedSearchContract,
   CapabilitiesBundleContract,
@@ -39,6 +13,37 @@ import type {
   SearchResultContract,
   SettingsBundleContract,
 } from "../types/type";
+import {
+  EH_COOKIE_POLL_INTERVAL_MS,
+  EH_FORUM_COOKIE_CONFIG_KEY,
+  EH_FORUM_LOGIN_REDIRECT_URL,
+  EH_FORUM_LOGIN_URL,
+  EH_IGNEOUS_CONFIG_KEY,
+  EH_MEMBER_ID_CONFIG_KEY,
+  EH_PASS_HASH_CONFIG_KEY,
+  PLUGIN_SOURCE,
+} from "./domain/constants";
+import { normalizeError } from "./errors/normalize-error";
+import { mapSearchResult } from "./mappers/comic.mapper";
+import { httpClient } from "./network/client";
+import { buildSearchNavigationEndpoint } from "./network/endpoints";
+import { parseSearchPage } from "./parsers/search.parser";
+import { getChapterService } from "./services/chapter.service";
+import { getComicDetailService } from "./services/detail.service";
+import { fetchImageBytesService } from "./services/image.service";
+import { getInfoService } from "./services/info.service";
+import { getReadSnapshotService } from "./services/read-snapshot.service";
+import { searchComicService } from "./services/search.service";
+import {
+  buildRequestConfig,
+  findCookieValue,
+  getSettingsBundleService,
+  migrateLegacyForumCookieIfNeeded,
+  readSettings,
+  removeCookieNames,
+  resetExAccessProbeCache,
+  saveCookiePart,
+} from "./services/settings.service";
 import { asRecord } from "./utils/guards";
 
 type SearchComicPayload = {
@@ -48,6 +53,7 @@ type SearchComicPayload = {
 };
 
 function extractCookieFromPayload(payload: Record<string, unknown>): string {
+  console.log(payload);
   const candidates = [
     payload.cookie,
     payload.cookies,
@@ -68,17 +74,6 @@ function extractCookieFromPayload(payload: Record<string, unknown>): string {
     }
   }
   return "";
-}
-
-function countCookiePairs(cookie: string): number {
-  const normalized = sanitizeForumCookie(cookie);
-  if (!normalized) {
-    return 0;
-  }
-  return normalized
-    .split(";")
-    .map((item) => item.trim())
-    .filter(Boolean).length;
 }
 
 function extractCookieNames(cookie: string): string[] {
@@ -464,11 +459,79 @@ export async function startEhentaiWebLogin(
   };
 }
 
+function asSetterPayload(payload: Record<string, unknown>): {
+  extern: Record<string, unknown>;
+  key: string;
+  value: unknown;
+} {
+  return {
+    extern: asRecord(payload.extern),
+    key: String(payload.key ?? "").trim(),
+    value: payload.value,
+  };
+}
+
+function normalizeCookiePartValue(value: unknown, key: string): string {
+  const raw = String(value ?? "").trim();
+  const parsed = findCookieValue(raw, key);
+  return parsed || raw;
+}
+
+async function setEhentaiCookiePart(
+  payload: Record<string, unknown> = {},
+  expectedKey: string,
+): Promise<Record<string, unknown>> {
+  const payloadMap = asRecord(payload);
+  const { value, key } = asSetterPayload(payloadMap);
+  if (key && key !== expectedKey) {
+    console.warn(`[EH] ${expectedKey} setter received unexpected key: ${key}`);
+  }
+  const sanitizedValue = normalizeCookiePartValue(value, expectedKey);
+  await saveCookiePart(expectedKey, sanitizedValue);
+  resetExAccessProbeCache();
+  return {
+    source: PLUGIN_SOURCE,
+    data: {
+      ok: true,
+      key: expectedKey,
+      value: sanitizedValue,
+      valuesPatch: {
+        [expectedKey]: sanitizedValue,
+      },
+      message: sanitizedValue ? `已保存 ${expectedKey}` : `已清空 ${expectedKey}`,
+    },
+  };
+}
+
+export async function setEhentaiIpbMemberId(
+  payload: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  return setEhentaiCookiePart(payload, EH_MEMBER_ID_CONFIG_KEY);
+}
+
+export async function setEhentaiIpbPassHash(
+  payload: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  return setEhentaiCookiePart(payload, EH_PASS_HASH_CONFIG_KEY);
+}
+
+export async function setEhentaiIgneous(
+  payload: Record<string, unknown> = {},
+): Promise<Record<string, unknown>> {
+  return setEhentaiCookiePart(payload, EH_IGNEOUS_CONFIG_KEY);
+}
+
 export async function setEhentaiForumCookie(
   payload: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
-  const rawCookie = extractCookieFromPayload(payloadMap);
+  const { value, key } = asSetterPayload(payloadMap);
+
+  const rawCookie =
+    key === EH_FORUM_COOKIE_CONFIG_KEY || key === "cookie" || !key
+      ? extractCookieFromPayload(payloadMap) || String(value ?? "").trim()
+      : String(value ?? "").trim();
+
   const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["igneous", "cf_clearance"]);
   const incomingCookieNames = extractCookieNames(String(rawCookie ?? ""));
   console.log(
@@ -476,68 +539,49 @@ export async function setEhentaiForumCookie(
     incomingCookieNames.length,
     incomingCookieNames,
   );
-  const sanitizedCookie = await saveForumCookie(sanitizedIncomingCookie);
-  const cookieCount = countCookiePairs(sanitizedCookie);
-  const persistedCookieNames = extractCookieNames(sanitizedCookie);
+
+  const memberId = findCookieValue(sanitizedIncomingCookie, "ipb_member_id");
+  const passHash = findCookieValue(sanitizedIncomingCookie, "ipb_pass_hash");
+
+  await Promise.all([
+    saveCookiePart(EH_MEMBER_ID_CONFIG_KEY, memberId),
+    saveCookiePart(EH_PASS_HASH_CONFIG_KEY, passHash),
+    saveCookiePart(EH_IGNEOUS_CONFIG_KEY, ""),
+  ]);
+
+  const persistedCookieNames = extractCookieNames(sanitizedIncomingCookie).filter(
+    (name) => name === "ipb_member_id" || name === "ipb_pass_hash",
+  );
   console.log(
     "[EH] setEhentaiForumCookie persisted",
     persistedCookieNames.length,
     persistedCookieNames,
   );
 
-  if (!sanitizedCookie || cookieCount <= 0) {
-    throw new Error("未检测到可用 cookie（已过滤 cf_clearance）");
-  }
-
   resetExAccessProbeCache();
 
   return {
     source: PLUGIN_SOURCE,
     data: {
       ok: true,
-      cookie: sanitizedCookie,
-      cookieCount,
-      ignoredCookieNames: ["cf_clearance"],
       valuesPatch: {
-        forumCookie: sanitizedCookie,
+        [EH_MEMBER_ID_CONFIG_KEY]: memberId,
+        [EH_PASS_HASH_CONFIG_KEY]: passHash,
+        [EH_IGNEOUS_CONFIG_KEY]: "",
       },
-      message: `已保存 ${cookieCount} 条论坛 cookie`,
-    },
-  };
-}
-
-export async function setEhentaiManualCookie(
-  payload: Record<string, unknown> = {},
-): Promise<Record<string, unknown>> {
-  const payloadMap = asRecord(payload);
-  const rawCookie = extractCookieFromPayload(payloadMap);
-  const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["cf_clearance"]);
-  const sanitizedCookie = await saveForumCookie(sanitizedIncomingCookie);
-  const cookieCount = countCookiePairs(sanitizedCookie);
-  const persistedCookieNames = extractCookieNames(sanitizedCookie);
-  console.log(
-    "[EH] setEhentaiManualCookie persisted",
-    persistedCookieNames.length,
-    persistedCookieNames,
-  );
-
-  resetExAccessProbeCache();
-
-  return {
-    source: PLUGIN_SOURCE,
-    data: {
-      ok: true,
-      cookie: sanitizedCookie,
-      cookieCount,
-      valuesPatch: {
-        forumCookie: sanitizedCookie,
-      },
-      message: cookieCount ? `已保存 ${cookieCount} 条 cookie` : "cookie 已清空",
+      message:
+        memberId && passHash
+          ? "已保存论坛 cookie"
+          : "未检测到有效的论坛 cookie（已过滤 cf_clearance / igneous）",
     },
   };
 }
 
 export async function init() {
+  await migrateLegacyForumCookieIfNeeded();
+  // Proactively resolve EX igneous (or fall back to EH) on plugin load so the
+  // user does not have to trigger a request first.
+  await readSettings(undefined, { skipExProbe: false });
   return {};
 }
 
@@ -559,5 +603,7 @@ export default {
   getCapabilitiesBundle,
   startEhentaiWebLogin,
   setEhentaiForumCookie,
-  setEhentaiManualCookie,
+  setEhentaiIpbMemberId,
+  setEhentaiIpbPassHash,
+  setEhentaiIgneous,
 };
