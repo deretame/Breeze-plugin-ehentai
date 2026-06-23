@@ -44,7 +44,11 @@ export function validationError(message: string, details?: PluginErrorDetails): 
   return new PluginError("VALIDATION_ERROR", message, false, details);
 }
 
-export function networkError(message: string, details?: PluginErrorDetails, retryable = true): PluginError {
+export function networkError(
+  message: string,
+  details?: PluginErrorDetails,
+  retryable = true,
+): PluginError {
   return new PluginError("NETWORK_ERROR", message, retryable, details);
 }
 

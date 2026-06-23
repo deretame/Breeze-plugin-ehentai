@@ -98,8 +98,10 @@ describe("cookie setters", () => {
   test("init_does_not_migrate_legacy_cookie_when_any_new_part_is_set", async () => {
     const legacyCookie = "ipb_member_id=1; ipb_pass_hash=2; igneous=abc123";
     rs.spyOn(pluginConfig, "load").mockImplementation((key, fallback = "") => {
-      if (key === "forumCookie") return Promise.resolve(JSON.stringify({ ok: true, value: legacyCookie }));
-      if (key === "ipb_member_id") return Promise.resolve(JSON.stringify({ ok: true, value: "existing" }));
+      if (key === "forumCookie")
+        return Promise.resolve(JSON.stringify({ ok: true, value: legacyCookie }));
+      if (key === "ipb_member_id")
+        return Promise.resolve(JSON.stringify({ ok: true, value: "existing" }));
       return Promise.resolve(JSON.stringify({ ok: true, value: fallback }));
     });
     const saveSpy = rs.spyOn(pluginConfig, "save").mockResolvedValue("");

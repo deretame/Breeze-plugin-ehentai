@@ -1,10 +1,4 @@
-import type {
-  BridgeApi,
-  CryptoApi,
-  FsApi,
-  NativeApi,
-  PathApi,
-} from "../types/runtime-globals";
+import type { BridgeApi, CryptoApi, FsApi, NativeApi, PathApi } from "../types/runtime-globals";
 
 export interface RuntimeApiSet {
   fs: FsApi;

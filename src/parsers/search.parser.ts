@@ -1,4 +1,4 @@
-import * as cheerio from "cheerio";
+import type { Cheerio, CheerioAPI } from "../../types/breeze-html";
 import type { SearchParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { toInt } from "../utils/number";
@@ -10,7 +10,7 @@ const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
 const COVER_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "src"] as const;
 const PLACEHOLDER_MARKERS = ["data:image", "base64,", "blank.gif", "spacer", "/img/blank"];
 
-function parsePaging($: cheerio.CheerioAPI): {
+function parsePaging($: CheerioAPI): {
   page: number;
   pages: number;
   total: number;
@@ -65,7 +65,7 @@ function parsePaging($: cheerio.CheerioAPI): {
 }
 
 export function parseSearchPage(html: string): SearchParsed {
-  const $ = cheerio.load(html);
+  const $ = BreezeHtml.load(html);
 
   function normalizeCoverCandidate(input: string): string {
     const value = String(input ?? "")
@@ -91,7 +91,7 @@ export function parseSearchPage(html: string): SearchParsed {
     return STYLE_URL_REGEX.exec(String(style ?? ""))?.[2] ?? "";
   }
 
-  function resolveCoverUrl(root: cheerio.Cheerio<any>): string {
+  function resolveCoverUrl(root: Cheerio): string {
     const scopes = [root.closest("tr"), root.closest(".itg > div"), root.closest("div")];
 
     const candidates: string[] = [];

@@ -33,8 +33,10 @@ describe("site routing behavior", () => {
       cookie: "ipb_member_id=1; igneous=expired; ipb_pass_hash=2",
     });
 
-    const valuesPatch = (result.data as Record<string, unknown>)
-      .valuesPatch as Record<string, string>;
+    const valuesPatch = (result.data as Record<string, unknown>).valuesPatch as Record<
+      string,
+      string
+    >;
     expect(valuesPatch.ipb_member_id).toBe("1");
     expect(valuesPatch.ipb_pass_hash).toBe("2");
     expect(valuesPatch.igneous).toBe("");
@@ -181,7 +183,9 @@ describe("site routing behavior", () => {
   });
 
   test("test_getRankingData_ex_falls_back_to_eh_for_toplist", async () => {
-    const getTextSpy = rs.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("search.html"));
+    const getTextSpy = rs
+      .spyOn(httpClient, "getText")
+      .mockResolvedValueOnce(fixture("search.html"));
 
     await getRankingData({
       extern: {

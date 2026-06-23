@@ -291,5 +291,4 @@ describe("chapter contract", () => {
       href: "https://e-hentai.org/s/abcdefghij/123456-1",
     });
   });
-
 });

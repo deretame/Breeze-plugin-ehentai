@@ -89,7 +89,11 @@ async function withRetry<T>(executor: () => Promise<T>): Promise<T> {
     attempts: MAX_RETRY_ATTEMPTS + 1,
     ...readAxiosErrorDetails(lastError),
   };
-  throw networkError(formatNetworkFailureMessage("Request failed after retries", details), details, true);
+  throw networkError(
+    formatNetworkFailureMessage("Request failed after retries", details),
+    details,
+    true,
+  );
 }
 
 export async function mapWithConcurrency<T, R>(
@@ -117,7 +121,11 @@ export async function mapWithConcurrency<T, R>(
 export const httpClient = {
   async getText(url: string, config?: AxiosRequestConfig): Promise<string> {
     return withRetry(async () => {
-      const requestConfig = buildSafeRequestConfig({ ...config, url, method: config?.method ?? "GET" });
+      const requestConfig = buildSafeRequestConfig({
+        ...config,
+        url,
+        method: config?.method ?? "GET",
+      });
       const response = await http.get<string>(url, {
         ...requestConfig,
         responseType: "text",
@@ -133,7 +141,11 @@ export const httpClient = {
 
   async getTextWithMeta(url: string, config?: AxiosRequestConfig): Promise<HttpTextResponseMeta> {
     return withRetry(async () => {
-      const requestConfig = buildSafeRequestConfig({ ...config, url, method: config?.method ?? "GET" });
+      const requestConfig = buildSafeRequestConfig({
+        ...config,
+        url,
+        method: config?.method ?? "GET",
+      });
       const response = await http.get<string>(url, {
         ...requestConfig,
         responseType: "text",

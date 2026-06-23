@@ -1,4 +1,3 @@
-import * as cheerio from "cheerio";
 import type { ReaderImageParsed, ReaderRangeParsed, ReaderThumbnail } from "../domain/types";
 import { parseError, upstreamBlockedError } from "../errors/plugin-error";
 import { toInt } from "../utils/number";
@@ -19,7 +18,7 @@ const RETRYABLE_MARKERS = [
 ];
 
 export function extractReloadKeyFromImagePage(html: string): string | undefined {
-  const $ = cheerio.load(html);
+  const $ = BreezeHtml.load(html);
   const loadFailOnClick = String($("#loadfail").attr("onclick") ?? "");
   return RELOAD_KEY_REGEX.exec(loadFailOnClick)?.[1];
 }
@@ -51,7 +50,7 @@ export function toImagePageHref(thumbnail: ReaderThumbnail, pageNo: number): str
 }
 
 export function parseThumbnailRangePage(html: string): ReaderRangeParsed {
-  const $ = cheerio.load(html);
+  const $ = BreezeHtml.load(html);
   const description = $(".gtb .gpc").first().text().replace(/,/g, "");
   const rangeMatch = RANGE_REGEX.exec(description);
   if (!rangeMatch) {
@@ -92,7 +91,7 @@ export function parseImagePage(href: string, html: string): ReaderImageParsed {
     throw upstreamBlockedError("image quota exceeded");
   }
 
-  const $ = cheerio.load(html);
+  const $ = BreezeHtml.load(html);
   const imageUrl = String($("#img").attr("src") ?? "").trim();
   const reloadKey = extractReloadKeyFromImagePage(html);
 

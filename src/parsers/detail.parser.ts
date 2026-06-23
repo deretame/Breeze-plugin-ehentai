@@ -1,11 +1,11 @@
-import * as cheerio from "cheerio";
+import type { CheerioAPI } from "../../types/breeze-html";
 import type { DetailParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { parsePageCount, toInt } from "../utils/number";
 import { normalizeWhitespace } from "../utils/text";
 import { splitComicId } from "../utils/guards";
 
-function parseCoverUrl($: cheerio.CheerioAPI): string {
+function parseCoverUrl($: CheerioAPI): string {
   const style = String($("#gd1 > div").attr("style") ?? "").trim();
   const styleMatch = /url\((['"]?)(.*?)\1\)/i.exec(style);
   if (styleMatch?.[2]) {
@@ -15,7 +15,7 @@ function parseCoverUrl($: cheerio.CheerioAPI): string {
   return String($("#gd1 img").attr("src") ?? "").trim();
 }
 
-function parseTagsByNamespace($: cheerio.CheerioAPI): Record<string, string[]> {
+function parseTagsByNamespace($: CheerioAPI): Record<string, string[]> {
   const tagsByNamespaceSet = new Map<string, Set<string>>();
 
   function pushTag(namespaceRaw: string, tagRaw: string): void {
@@ -64,7 +64,7 @@ function parseTagsByNamespace($: cheerio.CheerioAPI): Record<string, string[]> {
 }
 
 export function parseDetailPage(html: string, comicId: string): DetailParsed {
-  const $ = cheerio.load(html);
+  const $ = BreezeHtml.load(html);
   const englishTitle = normalizeWhitespace($("#gn").text());
   const japaneseTitle = normalizeWhitespace($("#gj").text());
   if (!englishTitle && !japaneseTitle) {
