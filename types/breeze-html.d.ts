@@ -1,9 +1,24 @@
 /**
- * Type declarations for BreezeHtml — the Rust-backed cheerio-compatible API
- * injected into every plugin runtime.
+ * BreezeHtml 类型声明 / Type declarations for BreezeHtml
  *
- * This is a minimal, read-only subset of the cheerio API that covers the
- * operations used by Breeze plugins.
+ * BreezeHtml 是 Breeze 插件运行时中注入的 Rust 原生 HTML 操作 API，
+ * 实现了 cheerio 的一个子集，旨在以 cheerio 兼容的接口提供更高的解析性能。
+ *
+ * BreezeHtml is the Rust-backed, cheerio-compatible HTML manipulation API
+ * injected into every Breeze plugin runtime. It implements a subset of cheerio
+ * and is designed to offer higher parsing performance while keeping the API
+ * familiar to cheerio users.
+ *
+ * 本项目并不意图完整替代 cheerio。如果现有 API 无法满足需求，插件仍可引入
+ * 完整的 cheerio（或其它 HTML 解析库）进行处理。
+ *
+ * This project is not intended to be a full replacement for cheerio. If the
+ * available API is insufficient for a particular task, plugins may still import
+ * the full cheerio library (or any other HTML parsing library) as needed.
+ *
+ * 现有从 `"cheerio"` 导入的插件可以移除该依赖，改为直接使用
+ * `const load = BreezeHtml.load;`。将此声明文件复制到插件项目并在全局类型
+ * 声明中引用，TypeScript 即可识别 `BreezeHtml` 及其返回的选择器类型。
  *
  * Existing plugins that import from `"cheerio"` can drop that dependency and
  * use `const load = BreezeHtml.load;` directly. Copy this declaration file into
@@ -25,11 +40,22 @@ export interface BreezeSelection {
   eq(index: number): BreezeSelection;
   closest(selector: string): BreezeSelection;
   parent(): BreezeSelection;
+  children(selector?: string): BreezeSelection;
+  siblings(selector?: string): BreezeSelection;
+  next(selector?: string): BreezeSelection;
+  prev(selector?: string): BreezeSelection;
   is(selector: string): boolean;
+
+  filter(selector: string): BreezeSelection;
+  filter(callback: (index: number, element: BreezeSelection) => boolean): BreezeSelection;
+  has(selector: string): BreezeSelection;
+  slice(start: number, end?: number): BreezeSelection;
+  index(): number;
 
   attr(name: string): string | undefined;
   text(): string;
   html(): string | undefined;
+  val(): string | undefined;
 
   toArray(): BreezeSelection[];
   each(callback: (index: number, element: BreezeSelection) => void): void;
