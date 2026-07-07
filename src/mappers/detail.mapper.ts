@@ -1,9 +1,9 @@
+import { ComicDetailContract } from "breeze-plugin-kit";
 import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
 import type { DetailParsed } from "../domain/types";
-import { ComicDetailContract } from "../../types/type";
 import {
-  buildGalleryChunkId,
   buildGalleryChunkExtern,
+  buildGalleryChunkId,
   buildGalleryChunks,
   formatGalleryChunkName,
   getGalleryChunkSize,

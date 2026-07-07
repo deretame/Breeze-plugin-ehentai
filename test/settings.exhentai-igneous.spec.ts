@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, rs } from "@rstest/core";
+import { afterEach, beforeEach, describe, expect, rs, test } from "@rstest/core";
+import { flutterTools, pluginConfig } from "breeze-plugin-kit";
 import { httpClient } from "../src/network/client";
-import { flutterTools, pluginConfig } from "../src/tools";
 import { readSettings, resetExAccessProbeCache } from "../src/services/settings.service";
 
 beforeEach(() => {

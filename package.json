@@ -26,7 +26,8 @@
     "dev:server": "tsx dev-server.ts"
   },
   "dependencies": {
-    "axios": "^1.18.0"
+    "axios": "^1.18.0",
+    "breeze-plugin-kit": "^0.3.0"
   },
   "devDependencies": {
     "@rspack/cli": "^2.0.8",

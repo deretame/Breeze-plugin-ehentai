@@ -1,5 +1,5 @@
+import type { SettingsBundleContract } from "breeze-plugin-kit";
 import { DEFAULT_SETTINGS, PLUGIN_SOURCE } from "../domain/constants";
-import type { SettingsBundleContract } from "../../types/type";
 import type { PluginSettings } from "../domain/types";
 
 export function mapSettingsBundle(

@@ -1,3 +1,4 @@
+import { flutterTools, pluginConfig, SettingsBundleContract } from "breeze-plugin-kit";
 import {
   DEFAULT_SETTINGS,
   EH_FORUM_COOKIE_CONFIG_KEY,
@@ -9,8 +10,6 @@ import {
 import type { PluginSettings } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
-import { flutterTools, pluginConfig } from "../tools";
-import { SettingsBundleContract } from "../../types/type";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);

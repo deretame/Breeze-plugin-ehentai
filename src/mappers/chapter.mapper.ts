@@ -1,5 +1,5 @@
+import type { ChapterContentContract } from "breeze-plugin-kit";
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { ChapterContentContract } from "../../types/type";
 import type { GalleryChunk } from "../utils/chunk";
 import {
   buildGalleryChunkExtern,

@@ -1,4 +1,6 @@
-import { afterEach, beforeEach, describe, expect, test, rs } from "@rstest/core";
+import { afterEach, beforeEach, describe, expect, rs, test } from "@rstest/core";
+import type { NativeApi } from "breeze-plugin-kit";
+import { pluginConfig } from "breeze-plugin-kit";
 import {
   init,
   setEhentaiForumCookie,
@@ -7,8 +9,6 @@ import {
   setEhentaiIpbPassHash,
 } from "../src/index";
 import { httpClient } from "../src/network/client";
-import { pluginConfig } from "../src/tools";
-import type { NativeApi } from "../types/runtime-globals";
 
 describe("cookie setters", () => {
   beforeEach(() => {

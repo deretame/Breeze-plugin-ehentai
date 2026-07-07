@@ -1,6 +1,7 @@
+import { afterEach, beforeEach, describe, expect, rs, test } from "@rstest/core";
+import type { NativeApi } from "breeze-plugin-kit";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, test, rs } from "@rstest/core";
 import { DEFERRED_IMAGE_PATH } from "../src/domain/constants";
 import {
   fetchImageBytes,
@@ -10,7 +11,6 @@ import {
   setEhentaiForumCookie,
 } from "../src/index";
 import { httpClient } from "../src/network/client";
-import type { NativeApi } from "../types/runtime-globals";
 
 function fixture(name: string): string {
   return readFileSync(join(import.meta.dirname, "fixtures", name), "utf-8");

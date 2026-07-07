@@ -1,4 +1,5 @@
-import type { ChapterContentContract } from "../../types/type";
+import type { ChapterContentContract } from "breeze-plugin-kit";
+import { cache } from "breeze-plugin-kit";
 import type { ChapterPayload, PluginSettings, ReaderRangeParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { mapChapterContent } from "../mappers/chapter.mapper";
@@ -6,18 +7,17 @@ import { httpClient } from "../network/client";
 import { buildDetailEndpoint } from "../network/endpoints";
 import { parseDetailPage } from "../parsers/detail.parser";
 import { parseThumbnailRangePage, toImagePageHref } from "../parsers/reader.parser";
-import { cache } from "../tools";
 import { unwrapBridgeValue } from "../utils/bridge-cache";
-import { buildDeferredImageUrl } from "../utils/deferred-image";
-import { requiredString } from "../utils/guards";
-import { ensureAllowedHostUrl } from "../utils/url";
 import {
-  buildGalleryChunkId,
   buildGalleryChunkExtern,
+  buildGalleryChunkId,
   getGalleryChunkSize,
   resolveGalleryChunkFromExtern,
   type GalleryChunk,
 } from "../utils/chunk";
+import { buildDeferredImageUrl } from "../utils/deferred-image";
+import { requiredString } from "../utils/guards";
+import { ensureAllowedHostUrl } from "../utils/url";
 import { resolveThumbnailRangesForChunk } from "./gallery-range.service";
 import {
   buildNonSearchSiteAttempts,

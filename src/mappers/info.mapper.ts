@@ -1,3 +1,4 @@
+import type { InfoContract } from "breeze-plugin-kit";
 import {
   PLUGIN_CREATOR,
   PLUGIN_DESCRIPTION,
@@ -8,7 +9,6 @@ import {
   PLUGIN_UUID,
   PLUGIN_VERSION,
 } from "../domain/constants";
-import type { InfoContract } from "../../types/type";
 
 function buildComicListScene(input: {
   title: string;

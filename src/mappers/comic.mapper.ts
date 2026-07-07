@@ -1,6 +1,6 @@
+import { SearchResultContract } from "breeze-plugin-kit";
 import { PLUGIN_SOURCE } from "../domain/constants";
-import type { SearchParsed, SearchComicPayload } from "../domain/types";
-import { SearchResultContract } from "../../types/type";
+import type { SearchComicPayload, SearchParsed } from "../domain/types";
 import { buildMediaPath } from "../utils/media-path";
 import { sanitizeMediaUrl } from "../utils/url";
 

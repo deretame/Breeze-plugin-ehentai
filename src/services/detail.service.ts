@@ -1,4 +1,4 @@
-import type { ComicDetailContract } from "../../types/type";
+import type { ComicDetailContract } from "breeze-plugin-kit";
 import type { ComicDetailPayload, PluginSettings } from "../domain/types";
 import { mapComicDetail } from "../mappers/detail.mapper";
 import { httpClient } from "../network/client";

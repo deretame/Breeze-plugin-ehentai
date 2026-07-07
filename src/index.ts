@@ -12,7 +12,7 @@ import type {
   ReadSnapshotContract,
   SearchResultContract,
   SettingsBundleContract,
-} from "../types/type";
+} from "breeze-plugin-kit";
 import {
   EH_COOKIE_POLL_INTERVAL_MS,
   EH_FORUM_COOKIE_CONFIG_KEY,

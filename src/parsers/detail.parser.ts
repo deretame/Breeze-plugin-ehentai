@@ -1,4 +1,4 @@
-import type { CheerioAPI } from "../../types/breeze-html";
+import type { CheerioAPI } from "breeze-plugin-kit";
 import type { DetailParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { parsePageCount, toInt } from "../utils/number";

@@ -1,9 +1,9 @@
-import type { Cheerio, CheerioAPI } from "../../types/breeze-html";
+import type { Cheerio, CheerioAPI } from "breeze-plugin-kit";
 import type { SearchParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
+import { buildTokenizedComicId } from "../utils/guards";
 import { toInt } from "../utils/number";
 import { normalizeWhitespace } from "../utils/text";
-import { buildTokenizedComicId } from "../utils/guards";
 
 const DETAIL_ID_REGEX = /\/g\/(\d+)\/([a-zA-Z0-9-]+)\/?/;
 const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
