@@ -13,6 +13,12 @@ import type {
   SearchResultContract,
   SettingsBundleContract,
 } from "breeze-plugin-kit";
+import type {
+  ToggleFavoritePayload,
+  ToggleFavoriteResult,
+  ListFavoriteFoldersResult,
+  MoveFavoriteToFolderPayload,
+} from "./types/favorite";
 import {
   EH_COOKIE_POLL_INTERVAL_MS,
   EH_FORUM_COOKIE_CONFIG_KEY,
@@ -35,6 +41,11 @@ import { getInfoService } from "./services/info.service";
 import { getReadSnapshotService } from "./services/read-snapshot.service";
 import { searchComicService } from "./services/search.service";
 import {
+  buildFavoriteListEndpoint,
+  buildFavoritePopupEndpoint,
+  buildDetailEndpoint,
+} from "./network/endpoints";
+import {
   buildRequestConfig,
   findCookieValue,
   getSettingsBundleService,
@@ -42,6 +53,7 @@ import {
   readSettings,
   removeCookieNames,
   resetExAccessProbeCache,
+  resolveSiteBaseUrl,
   saveCookiePart,
 } from "./services/settings.service";
 import { asRecord } from "./utils/guards";
@@ -435,6 +447,124 @@ export async function getAdvancedSearchScheme(
   };
 }
 
+function parseFavoriteFolders(html: string): Array<{ id: string; name: string }> {
+  const folders: Array<{ id: string; name: string }> = [];
+  const selectMatch = /<select[^>]*name="fav"[^>]*>([\s\S]*?)<\/select>/i.exec(html);
+  if (!selectMatch) {
+    return folders;
+  }
+  const optionRegex = /<option[^>]*value="([^"]*)"[^>]*>([\s\S]*?)<\/option>/gi;
+  let match: RegExpExecArray | null;
+  while ((match = optionRegex.exec(selectMatch[1])) !== null) {
+    const id = match[1].trim();
+    const name = match[2].replace(/<[^>]*>/g, "").trim();
+    if (id && name) {
+      folders.push({ id, name });
+    }
+  }
+  return folders;
+}
+
+function parseFavoriteStatus(html: string): boolean {
+  return /added to favorites|already in favorites|remove from favorites/i.test(html);
+}
+
+function isAlreadyInFavorites(html: string): boolean {
+  return /already in favorites|remove from favorites|favorited/i.test(html);
+}
+
+export async function toggleFavorite(
+  payload: ToggleFavoritePayload = {},
+): Promise<ToggleFavoriteResult> {
+  try {
+    const comicId = payload.comicId ?? "";
+    const currentFavorite = payload.currentFavorite ?? false;
+    const settings = await readSettings(payload.extern);
+    const requestConfig = buildRequestConfig(settings);
+
+    const popupEndpoint = buildFavoritePopupEndpoint(comicId, settings.site);
+    const headers = {
+      ...requestConfig?.headers,
+      "content-type": "application/x-www-form-urlencoded",
+      referer: buildDetailEndpoint(comicId, settings.site),
+    };
+
+    if (currentFavorite) {
+      const formData = new URLSearchParams();
+      formData.set("favact", "remove");
+      formData.set("submit", "Apply");
+      await httpClient.postForm(popupEndpoint, formData, { headers });
+      return { favorited: false, nextStep: "none" };
+    }
+
+    const formData = new URLSearchParams();
+    formData.set("favact", "add");
+    formData.set("fav", "0");
+    formData.set("submit", "Add");
+    const response = await httpClient.postForm(popupEndpoint, formData, { headers });
+
+    if (isAlreadyInFavorites(response.data)) {
+      return { favorited: true, nextStep: "none" };
+    }
+
+    const folders = parseFavoriteFolders(response.data);
+    if (folders.length > 0) {
+      return { favorited: true, nextStep: "selectFolder" };
+    }
+
+    return { favorited: parseFavoriteStatus(response.data), nextStep: "none" };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function listFavoriteFolders(): Promise<ListFavoriteFoldersResult> {
+  try {
+    const settings = await readSettings(undefined);
+    const requestConfig = buildRequestConfig(settings);
+
+    const headers = {
+      ...requestConfig?.headers,
+      referer: resolveSiteBaseUrl(settings.site),
+    };
+
+    const listEndpoint = buildFavoriteListEndpoint(settings.site);
+    const response = await httpClient.getTextWithMeta(listEndpoint, { headers });
+    const folders = parseFavoriteFolders(response.data);
+    return { items: folders };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function moveFavoriteToFolder(
+  payload: MoveFavoriteToFolderPayload = {},
+): Promise<{ ok: boolean }> {
+  try {
+    const comicId = payload.comicId ?? "";
+    const folderId = payload.folderId ?? "0";
+    const settings = await readSettings(payload.extern);
+    const requestConfig = buildRequestConfig(settings);
+
+    const popupEndpoint = buildFavoritePopupEndpoint(comicId, settings.site);
+    const headers = {
+      ...requestConfig?.headers,
+      "content-type": "application/x-www-form-urlencoded",
+      referer: buildDetailEndpoint(comicId, settings.site),
+    };
+
+    const formData = new URLSearchParams();
+    formData.set("favact", "add");
+    formData.set("fav", folderId);
+    formData.set("submit", "Add");
+    await httpClient.postForm(popupEndpoint, formData, { headers });
+
+    return { ok: true };
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
 export async function startEhentaiWebLogin(
   _payload: Record<string, unknown> = {},
 ): Promise<Record<string, unknown>> {
@@ -601,6 +731,9 @@ export default {
   getSettingsBundle,
   getAdvancedSearchScheme,
   getCapabilitiesBundle,
+  toggleFavorite,
+  listFavoriteFolders,
+  moveFavoriteToFolder,
   startEhentaiWebLogin,
   setEhentaiForumCookie,
   setEhentaiIpbMemberId,

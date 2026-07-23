@@ -171,6 +171,41 @@ export const httpClient = {
     });
   },
 
+  async postForm(
+    url: string,
+    formData: URLSearchParams,
+    config?: AxiosRequestConfig,
+  ): Promise<HttpTextResponseMeta> {
+    return withRetry(async () => {
+      const response = await http.post<string>(url, formData.toString(), {
+        ...buildSafeRequestConfig({ ...config, url, method: "POST" }),
+        headers: {
+          "content-type": "application/x-www-form-urlencoded",
+          ...config?.headers,
+        },
+        responseType: "text",
+        validateStatus: () => true,
+      });
+      const rawHeaders = response.headers as Record<string, unknown>;
+      const headers: TextResponseHeaders = {};
+      for (const [key, value] of Object.entries(rawHeaders)) {
+        if (Array.isArray(value)) {
+          headers[key.toLowerCase()] = value.map((item) => String(item));
+          continue;
+        }
+        if (value === undefined || value === null) {
+          continue;
+        }
+        headers[key.toLowerCase()] = String(value);
+      }
+      return {
+        status: Number(response.status ?? 0),
+        data: String(response.data ?? ""),
+        headers,
+      };
+    });
+  },
+
   async postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
     return withRetry(async () => {
       const response = await http.post<T>(url, body, {

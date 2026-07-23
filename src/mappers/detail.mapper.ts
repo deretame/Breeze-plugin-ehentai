@@ -192,7 +192,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
         isLiked: false,
         allowComments: false,
         allowLike: false,
-        allowCollected: false,
+        allowCollected: true,
         allowDownload: true,
         extern: {},
       },

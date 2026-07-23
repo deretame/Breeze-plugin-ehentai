@@ -1,6 +1,7 @@
 import { flutterTools, pluginConfig, SettingsBundleContract } from "breeze-plugin-kit";
 import {
   DEFAULT_SETTINGS,
+  EH_BASE_URL,
   EH_FORUM_COOKIE_CONFIG_KEY,
   EH_IGNEOUS_CONFIG_KEY,
   EH_MEMBER_ID_CONFIG_KEY,
@@ -280,6 +281,10 @@ async function fallbackToEhIfExAccessDenied(settings: PluginSettings): Promise<P
     ...settings,
     site: "EH",
   };
+}
+
+export function resolveSiteBaseUrl(site: string): string {
+  return String(site ?? "EH").toUpperCase() === "EX" ? EX_BASE_URL : EH_BASE_URL;
 }
 
 export function sanitizeForumCookie(rawCookie: unknown): string {

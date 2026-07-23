@@ -56,3 +56,19 @@ export function buildImagePageEndpoint(imagePageUrl: string, reloadKey?: string)
   }
   return ensureAllowedHostUrl(url.toString());
 }
+
+export function buildFavoritePopupEndpoint(comicId: string, site: SiteSetting): string {
+  const { gid, token } = splitComicId(comicId);
+  if (!gid || !token) {
+    throw validationError("comicId format is invalid");
+  }
+  const url = new URL("/gallerypopups.php", resolveSiteBase(site));
+  url.searchParams.set("gid", gid);
+  url.searchParams.set("t", token);
+  url.searchParams.set("act", "addfav");
+  return ensureAllowedHostUrl(url.toString());
+}
+
+export function buildFavoriteListEndpoint(site: SiteSetting): string {
+  return ensureAllowedHostUrl("/favorites.php", resolveSiteBase(site));
+}
