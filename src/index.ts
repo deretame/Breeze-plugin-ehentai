@@ -30,6 +30,7 @@ import { buildSearchNavigationEndpoint } from "./network/endpoints";
 import { parseSearchPage } from "./parsers/search.parser";
 import { getChapterService } from "./services/chapter.service";
 import { getComicDetailService } from "./services/detail.service";
+import { getFavoritesService } from "./services/favorites.service";
 import { fetchImageBytesService } from "./services/image.service";
 import { getInfoService } from "./services/info.service";
 import { getReadSnapshotService } from "./services/read-snapshot.service";
@@ -279,6 +280,97 @@ export async function getFunctionPage(
   } catch (error) {
     throw normalizeError(error);
   }
+}
+
+export async function getFavorites(
+  payload: Record<string, unknown> = {},
+): Promise<ComicPagedListContract> {
+  try {
+    const extern = asRecord(payload.extern);
+    const page = Math.max(1, Number(payload.page ?? extern.page ?? 1) || 1);
+    const favcat = String(payload.favcat ?? extern.favcat ?? "a").trim();
+    const sort = String(payload.sort ?? extern.sort ?? "").trim();
+
+    const settings = await readSettings(extern);
+    const mapped = await getFavoritesService({ page, favcat, sort, extern }, settings);
+
+    return {
+      source: PLUGIN_SOURCE,
+      extern: mapped.extern ?? undefined,
+      scheme: {
+        version: "1.0.0",
+        type: "favoritesFeed",
+        card: "comic",
+      },
+      data: {
+        page,
+        favcat: favcat || "a",
+        sort,
+        total: mapped.data.paging.total,
+        hasReachedMax: mapped.data.paging.hasReachedMax,
+        items: mapped.data.items,
+        raw: {
+          page: mapped.data.paging.page,
+          pages: mapped.data.paging.pages,
+          nextUrl: mapped.extern?.nextUrl ?? "",
+          prevUrl: mapped.extern?.prevUrl ?? "",
+        },
+      },
+    } as ComicPagedListContract;
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+const FAVORITES_SORTS = [
+  { label: "收藏时间", value: "f" },
+  { label: "发布时间", value: "p" },
+] as const;
+
+export async function getFavoritesFilterBundle(): Promise<FilterBundleContract> {
+  return {
+    source: PLUGIN_SOURCE,
+    scheme: {
+      version: "1.0.0",
+      type: "favoritesFilter",
+      title: "筛选收藏",
+      fields: [
+        {
+          key: "favcat",
+          kind: "choice",
+          label: "收藏分类",
+          options: [
+            {
+              label: "全部收藏",
+              value: "a",
+              result: { extern: { favcat: "a" } },
+            },
+            ...Array.from({ length: 10 }, (_, index) => ({
+              label: `分类 ${index + 1}`,
+              value: String(index),
+              result: { extern: { favcat: String(index) } },
+            })),
+          ],
+        },
+        {
+          key: "sort",
+          kind: "choice",
+          label: "排序方式",
+          options: FAVORITES_SORTS.map((item) => ({
+            label: item.label,
+            value: item.value,
+            result: { extern: { sort: item.value } },
+          })),
+        },
+      ],
+    },
+    data: {
+      values: {
+        favcat: "a",
+        sort: "f",
+      },
+    },
+  };
 }
 
 export async function getRankingFilterBundle(): Promise<FilterBundleContract> {
@@ -593,6 +685,8 @@ export default {
   getPopularData,
   getRankingData,
   getRankingFilterBundle,
+  getFavorites,
+  getFavoritesFilterBundle,
   searchComic,
   getComicDetail,
   getChapter,

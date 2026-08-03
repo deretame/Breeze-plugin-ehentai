@@ -1,5 +1,5 @@
 import type { Cheerio, CheerioAPI } from "breeze-plugin-kit";
-import type { SearchParsed } from "../domain/types";
+import type { SearchParsed, SearchParsedItem } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
 import { buildTokenizedComicId } from "../utils/guards";
 import { toInt } from "../utils/number";
@@ -10,7 +10,7 @@ const STYLE_URL_REGEX = /url\((['"]?)(.*?)\1\)/i;
 const COVER_ATTRIBUTES = ["data-src", "data-lazy-src", "data-original", "src"] as const;
 const PLACEHOLDER_MARKERS = ["data:image", "base64,", "blank.gif", "spacer", "/img/blank"];
 
-function parsePaging($: CheerioAPI): {
+export function parsePaging($: CheerioAPI): {
   page: number;
   pages: number;
   total: number;
@@ -64,8 +64,11 @@ function parsePaging($: CheerioAPI): {
   };
 }
 
-export function parseSearchPage(html: string): SearchParsed {
-  const $ = BreezeHtml.load(html);
+export function parseGalleryListItems(
+  $: CheerioAPI,
+  options?: { categorySelector?: string },
+): SearchParsedItem[] {
+  const categorySelector = options?.categorySelector ?? ".cn";
 
   function normalizeCoverCandidate(input: string): string {
     const value = String(input ?? "")
@@ -148,7 +151,9 @@ export function parseSearchPage(html: string): SearchParsed {
       const id = idMatch ? buildTokenizedComicId(idMatch[1], idMatch[2]) : "";
       const title = normalizeWhitespace(root.find(".glink").text() || anchor.text());
       const coverUrl = resolveCoverUrl(root);
-      const category = normalizeWhitespace(root.closest("tr").find(".cn").text());
+      const category = normalizeWhitespace(
+        root.closest("tr").find(categorySelector).first().text(),
+      );
       const uploader = normalizeWhitespace(
         root.closest("tr").find(".gl4c a, .gl5m a").first().text(),
       );
@@ -165,6 +170,12 @@ export function parseSearchPage(html: string): SearchParsed {
     .get()
     .filter((item) => item.id && item.title);
 
+  return items;
+}
+
+export function parseSearchPage(html: string): SearchParsed {
+  const $ = BreezeHtml.load(html);
+  const items = parseGalleryListItems($);
   const paging = parsePaging($);
 
   if (!Array.isArray(items)) {

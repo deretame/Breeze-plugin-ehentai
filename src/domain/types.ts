@@ -97,6 +97,7 @@ export type PluginErrorCode =
   | "NETWORK_ERROR"
   | "UPSTREAM_BLOCKED"
   | "PARSE_ERROR"
-  | "CONTRACT_ERROR";
+  | "CONTRACT_ERROR"
+  | "AUTH_REQUIRED";
 
 export type PluginErrorDetails = Record<string, unknown>;

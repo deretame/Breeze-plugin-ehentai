@@ -88,6 +88,32 @@
           }
         }
       }
+    },
+    {
+      "id": "favorites",
+      "title": "收藏",
+      "action": {
+        "type": "openComicList",
+        "payload": {
+          "scene": {
+            "title": "收藏",
+            "source": "dba2a6cf-c495-4416-accf-c29263ab4016",
+            "body": {
+              "type": "pluginPagedComicList",
+              "request": {
+                "fnPath": "getFavorites",
+                "core": {},
+                "extern": {}
+              }
+            },
+            "filter": {
+              "fnPath": "getFavoritesFilterBundle",
+              "core": {},
+              "extern": {}
+            }
+          }
+        }
+      }
     }
   ]
 }

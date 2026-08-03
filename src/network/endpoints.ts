@@ -36,6 +36,30 @@ export function buildSearchNavigationEndpoint(navigationUrl: string, site: SiteS
   return ensureAllowedHostUrl(navigationUrl, resolveSiteBase(site));
 }
 
+export function buildFavoritesEndpoint(
+  page: number,
+  site: SiteSetting,
+  options?: { favcat?: string; sort?: string },
+): string {
+  const url = new URL("/favorites.php", resolveSiteBase(site));
+  const favcat = String(options?.favcat ?? "")
+    .trim()
+    .toLowerCase();
+  if (favcat && favcat !== "a" && favcat !== "all") {
+    url.searchParams.set("favcat", favcat);
+  }
+  const sort = String(options?.sort ?? "")
+    .trim()
+    .toLowerCase();
+  if (sort && sort !== "f") {
+    url.searchParams.set("inline_set", `fs_${sort}`);
+  }
+  if (page > 1) {
+    url.searchParams.set("page", String(page - 1));
+  }
+  return ensureAllowedHostUrl(url.toString());
+}
+
 export function buildDetailEndpoint(comicId: string, site: SiteSetting, page = 0): string {
   const { gid, token } = splitComicId(comicId);
   if (!gid || !token) {

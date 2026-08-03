@@ -9,7 +9,12 @@ describe("info and settings contract", () => {
       name: "e-hentai",
       uuid: PLUGIN_UUID,
     });
-    expect(info.function.map((item) => item.id)).toEqual(["latest", "popular", "ranking"]);
+    expect(info.function.map((item) => item.id)).toEqual([
+      "latest",
+      "popular",
+      "ranking",
+      "favorites",
+    ]);
   });
 
   test("test_getSettingsBundle_returns_valid_bundle", async () => {

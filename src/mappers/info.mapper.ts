@@ -110,6 +110,26 @@ export function mapInfo(): InfoContract {
           },
         },
       },
+      {
+        id: "favorites",
+        title: "收藏",
+        action: {
+          type: "openComicList",
+          payload: {
+            scene: buildComicListScene({
+              title: "收藏",
+              request: {
+                fnPath: "getFavorites",
+                extern: {},
+              },
+              filter: {
+                fnPath: "getFavoritesFilterBundle",
+                extern: {},
+              },
+            }),
+          },
+        },
+      },
     ],
   };
 }

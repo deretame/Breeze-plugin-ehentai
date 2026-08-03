@@ -60,6 +60,10 @@ export function parseError(message: string, details?: PluginErrorDetails): Plugi
   return new PluginError("PARSE_ERROR", message, false, details);
 }
 
+export function authRequiredError(message: string, details?: PluginErrorDetails): PluginError {
+  return new PluginError("AUTH_REQUIRED", message, false, details);
+}
+
 export function contractError(message: string, details?: PluginErrorDetails): PluginError {
   return new PluginError("CONTRACT_ERROR", message, false, details);
 }
