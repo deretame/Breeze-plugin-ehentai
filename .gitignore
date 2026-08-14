@@ -4,3 +4,4 @@ dist/
 .aider*
 .you/
 src/data.js
+.clice
