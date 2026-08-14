@@ -6,7 +6,6 @@ import {
 } from "../domain/constants";
 import { networkError } from "../errors/plugin-error";
 
-const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
 type TextResponseHeaders = Record<string, string | string[] | undefined>;
 
 export type HttpTextResponseMeta = {
@@ -17,8 +16,8 @@ export type HttpTextResponseMeta = {
 
 const http = axios.create({
   timeout: DEFAULT_TIMEOUT_MS,
-  maxContentLength: MAX_RESPONSE_BYTES,
-  maxBodyLength: MAX_RESPONSE_BYTES,
+  maxContentLength: Infinity,
+  maxBodyLength: Infinity,
   maxRedirects: 0,
 });
 
