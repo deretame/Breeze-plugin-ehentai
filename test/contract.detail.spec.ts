@@ -14,7 +14,9 @@ afterEach(() => {
 
 describe("detail contract", () => {
   test("test_getComicDetail_valid_comicId_returns_detail_with_eps", async () => {
-    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(fixture("detail.html"));
+    const getTextSpy = rs
+      .spyOn(httpClient, "getText")
+      .mockResolvedValueOnce(fixture("detail.html"));
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.scheme.type).toBe("comicDetail");
@@ -22,6 +24,8 @@ describe("detail contract", () => {
     expect(result.data.normal.comicInfo.title).toBe("English Gallery Title");
     expect(result.data.normal.comicInfo.cover.url).toBe("https://ehgt.org/c/detail-cover.jpg");
     expect(result.data.normal.comicInfo.cover.path).toBe("123456_abcdef.jpg");
+    expect(result.data.normal.totalComments).toBe(1);
+    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toContain("hc=1");
     expect(result.data.normal.comicInfo.titleMeta[0]).toMatchObject({
       name: "副标题：日本語タイトル",
       onTap: {},

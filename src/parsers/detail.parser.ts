@@ -1,6 +1,7 @@
 import type { CheerioAPI } from "breeze-plugin-kit";
 import type { DetailParsed } from "../domain/types";
 import { parseError } from "../errors/plugin-error";
+import { countComments } from "./comments.parser";
 import { parsePageCount, toInt } from "../utils/number";
 import { normalizeWhitespace } from "../utils/text";
 import { splitComicId } from "../utils/guards";
@@ -120,6 +121,7 @@ export function parseDetailPage(html: string, comicId: string): DetailParsed {
     pageCount: parsePageCount(tableMap["length"] ?? ""),
     posted: tableMap.posted || undefined,
     favoritedCount: favoritedCount > 0 ? favoritedCount : undefined,
+    totalComments: countComments(html),
     ratingAverage: ratingAverage || undefined,
     ratingCount: ratingCount > 0 ? ratingCount : undefined,
     tagsByNamespace: parseTagsByNamespace($),

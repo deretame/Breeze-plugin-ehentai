@@ -3,9 +3,14 @@ import type {
   CapabilitiesBundleContract,
   ChapterContentContract,
   ChapterPayload,
+  CommentFeedContract,
+  CommentFeedPayload,
   ComicDetailContract,
   ComicDetailPayload,
   ComicPagedListContract,
+  FavoriteWorkflowContinuePayload,
+  FavoriteWorkflowResult,
+  FavoriteWorkflowStartPayload,
   FetchImageBytesPayload,
   FilterBundleContract,
   InfoContract,
@@ -29,8 +34,13 @@ import { httpClient } from "./network/client";
 import { buildSearchNavigationEndpoint } from "./network/endpoints";
 import { parseSearchPage } from "./parsers/search.parser";
 import { getChapterService } from "./services/chapter.service";
+import { getCommentFeedService } from "./services/comments.service";
 import { getComicDetailService } from "./services/detail.service";
 import { getFavoritesService } from "./services/favorites.service";
+import {
+  continueFavoriteActionService,
+  startFavoriteActionService,
+} from "./services/favorite.service";
 import { fetchImageBytesService } from "./services/image.service";
 import { getInfoService } from "./services/info.service";
 import { getReadSnapshotService } from "./services/read-snapshot.service";
@@ -118,6 +128,17 @@ export async function getComicDetail(
   try {
     const settings = await readSettings(payload.extern);
     return await getComicDetailService(payload, settings);
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getCommentFeed(
+  payload: CommentFeedPayload = {},
+): Promise<CommentFeedContract> {
+  try {
+    const settings = await readSettings(payload.extern);
+    return await getCommentFeedService(payload, settings);
   } catch (error) {
     throw normalizeError(error);
   }
@@ -371,6 +392,40 @@ export async function getFavoritesFilterBundle(): Promise<FilterBundleContract> 
       },
     },
   };
+}
+
+export async function startFavoriteAction(
+  payload: FavoriteWorkflowStartPayload,
+): Promise<FavoriteWorkflowResult> {
+  try {
+    const settings = await readSettings(payload.extern);
+    return await startFavoriteActionService(payload, settings);
+  } catch (error) {
+    return {
+      status: "failed",
+      favorited: payload.action === "move" || payload.action === "removeFromTarget",
+      committed: false,
+      message: error instanceof Error ? error.message : String(error),
+      errorCode: "FAVORITE_WORKFLOW_FAILED",
+    };
+  }
+}
+
+export async function continueFavoriteAction(
+  payload: FavoriteWorkflowContinuePayload,
+): Promise<FavoriteWorkflowResult> {
+  try {
+    const settings = await readSettings(payload.extern);
+    return await continueFavoriteActionService(payload, settings);
+  } catch (error) {
+    return {
+      status: "failed",
+      favorited: payload.action === "move" || payload.action === "removeFromTarget",
+      committed: false,
+      message: error instanceof Error ? error.message : String(error),
+      errorCode: "FAVORITE_WORKFLOW_FAILED",
+    };
+  }
 }
 
 export async function getRankingFilterBundle(): Promise<FilterBundleContract> {
@@ -687,8 +742,11 @@ export default {
   getRankingFilterBundle,
   getFavorites,
   getFavoritesFilterBundle,
+  startFavoriteAction,
+  continueFavoriteAction,
   searchComic,
   getComicDetail,
+  getCommentFeed,
   getChapter,
   getReadSnapshot,
   fetchImageBytes,

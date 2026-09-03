@@ -170,6 +170,34 @@ export const httpClient = {
     });
   },
 
+  async postText(
+    url: string,
+    body: Record<string, string>,
+    config?: AxiosRequestConfig,
+  ): Promise<string> {
+    return withRetry(async () => {
+      const requestConfig = buildSafeRequestConfig({
+        ...config,
+        url,
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+          ...config?.headers,
+        },
+      });
+      const response = await http.post<string>(url, new URLSearchParams(body).toString(), {
+        ...requestConfig,
+        responseType: "text",
+      });
+      ensureContentType(
+        response.headers?.["content-type"],
+        ["text/html", "application/xhtml+xml"],
+        "HTML form request",
+      );
+      return String(response.data ?? "");
+    });
+  },
+
   async postJson<T>(url: string, body: Record<string, unknown>): Promise<T> {
     return withRetry(async () => {
       const response = await http.post<T>(url, body, {

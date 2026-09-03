@@ -65,6 +65,7 @@ export type DetailParsed = {
   pageCount?: number;
   posted?: string;
   favoritedCount?: number;
+  totalComments?: number;
   ratingAverage?: string;
   ratingCount?: number;
   tagsByNamespace: Record<string, string[]>;

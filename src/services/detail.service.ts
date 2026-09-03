@@ -2,7 +2,7 @@ import type { ComicDetailContract } from "breeze-plugin-kit";
 import type { ComicDetailPayload, PluginSettings } from "../domain/types";
 import { mapComicDetail } from "../mappers/detail.mapper";
 import { httpClient } from "../network/client";
-import { buildDetailEndpoint } from "../network/endpoints";
+import { buildCommentsEndpoint } from "../network/endpoints";
 import { parseDetailPage } from "../parsers/detail.parser";
 import { requiredString } from "../utils/guards";
 import {
@@ -21,7 +21,7 @@ export async function getComicDetailService(
   let lastError: unknown;
 
   for (const attempt of attempts) {
-    const endpoint = buildDetailEndpoint(comicId, attempt.site);
+    const endpoint = buildCommentsEndpoint(comicId, attempt.site);
     try {
       const html = attempt.requestConfig
         ? await httpClient.getText(endpoint, attempt.requestConfig)

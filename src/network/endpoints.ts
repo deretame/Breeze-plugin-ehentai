@@ -60,6 +60,18 @@ export function buildFavoritesEndpoint(
   return ensureAllowedHostUrl(url.toString());
 }
 
+export function buildFavoritePopupEndpoint(comicId: string, site: SiteSetting): string {
+  const { gid, token } = splitComicId(comicId);
+  if (!gid || !token) {
+    throw validationError("comicId format is invalid");
+  }
+  const url = new URL("/gallerypopups.php", resolveSiteBase(site));
+  url.searchParams.set("gid", gid);
+  url.searchParams.set("t", token);
+  url.searchParams.set("act", "addfav");
+  return ensureAllowedHostUrl(url.toString());
+}
+
 export function buildDetailEndpoint(comicId: string, site: SiteSetting, page = 0): string {
   const { gid, token } = splitComicId(comicId);
   if (!gid || !token) {
@@ -69,6 +81,12 @@ export function buildDetailEndpoint(comicId: string, site: SiteSetting, page = 0
   if (page > 0) {
     url.searchParams.set("p", String(page));
   }
+  return ensureAllowedHostUrl(url.toString());
+}
+
+export function buildCommentsEndpoint(comicId: string, site: SiteSetting): string {
+  const url = new URL(buildDetailEndpoint(comicId, site));
+  url.searchParams.set("hc", "1");
   return ensureAllowedHostUrl(url.toString());
 }
 
