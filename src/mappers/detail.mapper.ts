@@ -1,4 +1,11 @@
-import { ComicDetailContract } from "breeze-plugin-kit";
+import type {
+  ActionItem,
+  ComicDetailContract,
+  ComicInfoPageAction,
+  CreatorPageAction,
+  MetadataListItem,
+  OpenSearchAction,
+} from "breeze-plugin-kit";
 import { FALLBACK_UNKNOWN, PLUGIN_SOURCE } from "../domain/constants";
 import type { DetailParsed } from "../domain/types";
 import {
@@ -12,15 +19,21 @@ import { buildMediaPath } from "../utils/media-path";
 import { translateNamespace, translateTag } from "../utils/tag-translation";
 import { sanitizeMediaUrl } from "../utils/url";
 
+const EMPTY_ACTION = {} as ComicInfoPageAction;
+
+type ComicDetailWithPreview = ComicDetailContract & {
+  data: Omit<ComicDetailContract["data"], "normal"> & {
+    normal: ComicDetailContract["data"]["normal"] & {
+      preview: { enabled: true };
+    };
+  };
+};
+
 function actionItem(
   value?: string | number,
-  onTap: Record<string, unknown> = {},
+  onTap: ComicInfoPageAction = EMPTY_ACTION,
   extern: Record<string, unknown> = {},
-): {
-  name: string;
-  onTap: Record<string, unknown>;
-  extern: Record<string, unknown>;
-} {
+): ActionItem {
   const text = value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
   return {
     name: text,
@@ -29,20 +42,13 @@ function actionItem(
   };
 }
 
-function withLabel(
-  label: string,
-  value?: string | number,
-): {
-  name: string;
-  onTap: Record<string, unknown>;
-  extern: Record<string, unknown>;
-} {
+function withLabel(label: string, value?: string | number): ActionItem {
   const normalizedValue =
     value == null || String(value).trim() === "" ? FALLBACK_UNKNOWN : String(value);
   return actionItem(`${label}：${normalizedValue}`);
 }
 
-function openSearchAction(keyword: string): Record<string, unknown> {
+function openSearchAction(keyword: string): OpenSearchAction {
   return {
     type: "openSearch",
     payload: {
@@ -53,15 +59,7 @@ function openSearchAction(keyword: string): Record<string, unknown> {
   };
 }
 
-function buildTagMetadata(detail: DetailParsed): Array<{
-  type: string;
-  name: string;
-  value: Array<{
-    name: string;
-    onTap: Record<string, unknown>;
-    extern: Record<string, unknown>;
-  }>;
-}> {
+function buildTagMetadata(detail: DetailParsed): MetadataListItem[] {
   return Object.entries(detail.tagsByNamespace)
     .map(([namespace, tags]) => {
       const normalizedNamespace = String(namespace ?? "")
@@ -88,28 +86,12 @@ function buildTagMetadata(detail: DetailParsed): Array<{
         ),
       };
     })
-    .filter(
-      (
-        item,
-      ): item is {
-        type: string;
-        name: string;
-        value: Array<{
-          name: string;
-          onTap: Record<string, unknown>;
-          extern: Record<string, unknown>;
-        }>;
-      } => Boolean(item),
-    );
+    .filter((item): item is MetadataListItem => item !== null);
 }
 
-export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDetailContract {
+export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDetailWithPreview {
   const coverUrl = sanitizeMediaUrl(detail.coverUrl);
-  const titleMeta: Array<{
-    name: string;
-    onTap: Record<string, unknown>;
-    extern: Record<string, unknown>;
-  }> = [];
+  const titleMeta: ActionItem[] = [];
 
   if (detail.englishTitle && detail.japaneseTitle) {
     titleMeta.push(withLabel("副标题", detail.japaneseTitle));
@@ -145,6 +127,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
     scheme: { version: "1.0.0", type: "comicDetail", source: PLUGIN_SOURCE },
     data: {
       normal: {
+        preview: { enabled: true },
         comicInfo: {
           id: comicId,
           title: detail.title,
@@ -166,7 +149,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
               path: "",
               extern: {},
             },
-            onTap: {},
+            onTap: {} as CreatorPageAction,
             extern: {},
           },
           titleMeta,

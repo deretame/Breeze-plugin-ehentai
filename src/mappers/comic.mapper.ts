@@ -1,8 +1,10 @@
-import { SearchResultContract } from "breeze-plugin-kit";
+import type { ActionItem, SearchResultContract } from "breeze-plugin-kit";
 import { PLUGIN_SOURCE } from "../domain/constants";
 import type { SearchComicPayload, SearchParsed } from "../domain/types";
 import { buildMediaPath } from "../utils/media-path";
 import { sanitizeMediaUrl } from "../utils/url";
+
+const EMPTY_ACTION = {} as ActionItem["onTap"];
 
 export function mapSearchResult(
   payload: SearchComicPayload,
@@ -49,12 +51,16 @@ export function mapSearchResult(
             {
               type: "category",
               name: "Category",
-              value: item.category ? [{ name: item.category, onTap: {}, extern: {} }] : [],
+              value: item.category
+                ? [{ name: item.category, onTap: EMPTY_ACTION, extern: {} }]
+                : [],
             },
             {
               type: "uploader",
               name: "Uploader",
-              value: item.uploader ? [{ name: item.uploader, onTap: {}, extern: {} }] : [],
+              value: item.uploader
+                ? [{ name: item.uploader, onTap: EMPTY_ACTION, extern: {} }]
+                : [],
             },
           ],
           raw: {
@@ -95,12 +101,12 @@ export function mapSearchResult(
           {
             type: "category",
             name: "Category",
-            value: item.category ? [{ name: item.category, onTap: {}, extern: {} }] : [],
+            value: item.category ? [{ name: item.category, onTap: EMPTY_ACTION, extern: {} }] : [],
           },
           {
             type: "uploader",
             name: "Uploader",
-            value: item.uploader ? [{ name: item.uploader, onTap: {}, extern: {} }] : [],
+            value: item.uploader ? [{ name: item.uploader, onTap: EMPTY_ACTION, extern: {} }] : [],
           },
         ],
         raw: {

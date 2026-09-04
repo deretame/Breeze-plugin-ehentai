@@ -20,6 +20,11 @@ describe("detail contract", () => {
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
     expect(result.scheme.type).toBe("comicDetail");
+    expect(
+      (result.data.normal as typeof result.data.normal & { preview?: unknown }).preview,
+    ).toEqual({
+      enabled: true,
+    });
     expect(result.data.normal.comicInfo.id).toBe("123456/abcdef");
     expect(result.data.normal.comicInfo.title).toBe("English Gallery Title");
     expect(result.data.normal.comicInfo.cover.url).toBe("https://ehgt.org/c/detail-cover.jpg");

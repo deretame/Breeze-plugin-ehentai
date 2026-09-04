@@ -15,6 +15,8 @@ export const PLUGIN_CREATOR = {
 export const EH_BASE_URL = "https://e-hentai.org";
 export const EX_BASE_URL = "https://exhentai.org";
 export const DEFERRED_IMAGE_PATH = "/_breeze/read-image";
+export const PREVIEW_IMAGE_PATH = "/_breeze/preview-image";
+export const PREVIEW_IMAGE_KIND = "ehentai-preview-native-v1";
 export const EH_FORUM_LOGIN_URL = "https://forums.e-hentai.org/index.php?act=Login";
 export const EH_FORUM_LOGIN_REDIRECT_URL = "https://forums.e-hentai.org/index.php?";
 export const EH_COOKIE_POLL_INTERVAL_MS = 500000;

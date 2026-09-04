@@ -3,6 +3,6 @@ minimumReleaseAge: 0
 allowBuilds:
   esbuild: true
 minimumReleaseAgeExclude:
-  - breeze-plugin-kit@0.3.0
+  - breeze-plugin-kit@0.8.0
 onlyBuiltDependencies:
   - esbuild

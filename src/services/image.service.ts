@@ -11,6 +11,8 @@ import {
 import { parseDeferredImageUrl } from "../utils/deferred-image";
 import { requiredString } from "../utils/guards";
 import { ensureAllowedHostUrl, ensureAllowedMediaUrl } from "../utils/url";
+import { isPreviewPlaceholderUrl, readPreviewNativeBufferId } from "../utils/preview-image";
+import { requireNative } from "../utils/native";
 import {
   buildNonSearchSiteAttempts,
   remapGalleryHostForSite,
@@ -82,6 +84,16 @@ export async function fetchImageBytesService(
   settings: PluginSettings,
 ) {
   const rawUrl = requiredString(payload.url, "url");
+  const previewNativeBufferId = readPreviewNativeBufferId(payload.extern);
+  if (previewNativeBufferId != null) {
+    return await requireNative().take(previewNativeBufferId);
+  }
+  if (isPreviewPlaceholderUrl(rawUrl)) {
+    throw contractError("missing preview native buffer", {
+      url: rawUrl,
+      extern: payload.extern ?? {},
+    });
+  }
   const deferredImagePageHref = readDeferredImagePageHref(payload, rawUrl);
   const attempts = buildNonSearchSiteAttempts(settings, payload.extern);
 

@@ -14,6 +14,8 @@ import type {
   FetchImageBytesPayload,
   FilterBundleContract,
   InfoContract,
+  PreviewContentContract,
+  PreviewPayload,
   ReadSnapshotContract,
   SearchResultContract,
   SettingsBundleContract,
@@ -44,6 +46,7 @@ import {
 import { fetchImageBytesService } from "./services/image.service";
 import { getInfoService } from "./services/info.service";
 import { getReadSnapshotService } from "./services/read-snapshot.service";
+import { getPreviewService } from "./services/preview.service";
 import { searchComicService } from "./services/search.service";
 import {
   buildRequestConfig,
@@ -160,6 +163,15 @@ export async function getReadSnapshot(payload: ChapterPayload = {}): Promise<Rea
   try {
     const settings = await readSettings(payload.extern);
     return await getReadSnapshotService(payload, settings);
+  } catch (error) {
+    throw normalizeError(error);
+  }
+}
+
+export async function getPreview(payload: PreviewPayload = {}): Promise<PreviewContentContract> {
+  try {
+    const settings = await readSettings(payload.extern);
+    return await getPreviewService(payload, settings);
   } catch (error) {
     throw normalizeError(error);
   }
@@ -749,6 +761,7 @@ export default {
   getCommentFeed,
   getChapter,
   getReadSnapshot,
+  getPreview,
   fetchImageBytes,
   getSettingsBundle,
   getAdvancedSearchScheme,
