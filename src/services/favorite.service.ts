@@ -142,7 +142,7 @@ async function listFavoriteFoldersService(
     throw authRequiredError("请先登录后再查看收藏分类");
   }
 
-  const favoritesEndpoint = buildFavoritesEndpoint(1, settings.site);
+  const favoritesEndpoint = buildFavoritesEndpoint(settings.site);
   const html = await httpClient.getText(favoritesEndpoint, requestConfig);
   if (isFavoritesLoginPage(html)) {
     throw authRequiredError("登录状态已失效，请重新登录");

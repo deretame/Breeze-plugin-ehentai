@@ -37,7 +37,6 @@ export function buildSearchNavigationEndpoint(navigationUrl: string, site: SiteS
 }
 
 export function buildFavoritesEndpoint(
-  page: number,
   site: SiteSetting,
   options?: { favcat?: string; sort?: string },
 ): string {
@@ -54,9 +53,10 @@ export function buildFavoritesEndpoint(
   if (sort && sort !== "f") {
     url.searchParams.set("inline_set", `fs_${sort}`);
   }
-  if (page > 1) {
-    url.searchParams.set("page", String(page - 1));
-  }
+  // 注意：e-hentai / exhentai 的收藏页会忽略 `?page=` 参数（实测 `?page=1`
+  // 与 `?page=2` 返回与第一页完全相同的内容），翻页必须使用页面导航里的
+  // `next` 游标（`favorites.php?next=...`）。因此这里不再拼接 `page` 参数，
+  // 取第 N 页时由 getFavoritesService 从第一页开始跟随 nextUrl 逐页跳转。
   return ensureAllowedHostUrl(url.toString());
 }
 

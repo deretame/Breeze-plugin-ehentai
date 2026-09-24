@@ -31,6 +31,7 @@ import {
   PLUGIN_SOURCE,
 } from "./domain/constants";
 import { normalizeError } from "./errors/normalize-error";
+import type { SearchParsed } from "./domain/types";
 import { mapSearchResult } from "./mappers/comic.mapper";
 import { httpClient } from "./network/client";
 import { buildSearchNavigationEndpoint } from "./network/endpoints";
@@ -261,55 +262,107 @@ export async function getFunctionPage(
     const settings = await readSettings(extern);
     const requestConfig = buildRequestConfig(settings);
 
-    let endpoint = "";
-    if (page > 1 && nextUrlFromExtern) {
-      endpoint = buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site);
-    } else if (source === "ranking") {
-      const tl = resolveRankTl(rankType);
-      const rankingSite = settings.site === "EX" ? "EH" : settings.site;
-      endpoint = buildSearchNavigationEndpoint(
-        `/toplist.php?tl=${tl}&p=${Math.max(0, page - 1)}`,
-        rankingSite,
+    function buildBaseEndpoint(): string {
+      let endpoint = buildSearchNavigationEndpoint(
+        resolveFunctionPageBySource(source),
+        settings.site,
       );
-    } else {
-      endpoint = buildSearchNavigationEndpoint(resolveFunctionPageBySource(source), settings.site);
       if (keyword) {
         const url = new URL(endpoint);
         url.searchParams.set("f_search", keyword);
         endpoint = buildSearchNavigationEndpoint(url.toString(), settings.site);
       }
+      return endpoint;
     }
 
-    const html = requestConfig
-      ? await httpClient.getText(endpoint, requestConfig)
-      : await httpClient.getText(endpoint);
+    async function fetchListPage(endpoint: string): Promise<SearchParsed> {
+      const html = requestConfig
+        ? await httpClient.getText(endpoint, requestConfig)
+        : await httpClient.getText(endpoint);
+      return parseSearchPage(html);
+    }
 
-    const parsed = parseSearchPage(html);
-    const mapped = mapSearchResult({ page, extern: { ...extern, source } }, parsed);
+    function buildResponse(parsed: SearchParsed): ComicPagedListContract {
+      const mapped = mapSearchResult({ page, extern: { ...extern, source } }, parsed);
 
-    return {
-      source: PLUGIN_SOURCE,
-      extern: mapped.extern ?? undefined,
-      scheme: {
-        version: "1.0.0",
-        type: `${source || "latest"}Feed`,
-        card: "comic",
-      },
-      data: {
-        page,
-        keyword,
-        rankType,
-        total: mapped.data.paging.total,
-        hasReachedMax: mapped.data.paging.hasReachedMax,
-        items: mapped.data.items,
-        raw: {
-          page: mapped.data.paging.page,
-          pages: mapped.data.paging.pages,
-          nextUrl: mapped.extern?.nextUrl ?? "",
-          prevUrl: mapped.extern?.prevUrl ?? "",
+      return {
+        source: PLUGIN_SOURCE,
+        extern: mapped.extern ?? undefined,
+        scheme: {
+          version: "1.0.0",
+          type: `${source || "latest"}Feed`,
+          card: "comic",
         },
-      },
-    } as ComicPagedListContract;
+        data: {
+          page,
+          keyword,
+          rankType,
+          total: mapped.data.paging.total,
+          hasReachedMax: mapped.data.paging.hasReachedMax,
+          items: mapped.data.items,
+          raw: {
+            page: mapped.data.paging.page,
+            pages: mapped.data.paging.pages,
+            nextUrl: mapped.extern?.nextUrl ?? "",
+            prevUrl: mapped.extern?.prevUrl ?? "",
+          },
+        },
+      } as ComicPagedListContract;
+    }
+
+    // 排行榜（toplist.php）是真正的页码式翻页（`?p=`），保持原逻辑。
+    if (source === "ranking") {
+      const tl = resolveRankTl(rankType);
+      const rankingSite = settings.site === "EX" ? "EH" : settings.site;
+      return buildResponse(
+        await fetchListPage(
+          buildSearchNavigationEndpoint(
+            `/toplist.php?tl=${tl}&p=${Math.max(0, page - 1)}`,
+            rankingSite,
+          ),
+        ),
+      );
+    }
+
+    // 最新 / 热门：第 1 页直接取。
+    if (page <= 1) {
+      return buildResponse(await fetchListPage(buildBaseEndpoint()));
+    }
+
+    // 第 N 页且调用方透传了上一页返回的 nextUrl：直接跳转（1 次请求）。
+    if (nextUrlFromExtern) {
+      return buildResponse(
+        await fetchListPage(
+          buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site),
+        ),
+      );
+    }
+
+    // 第 N 页但没有游标：首页 / 热门页不支持 `?page=`（会被服务端忽略并返回
+    // 第一页），只能从第一页开始跟随 nextUrl 逐页跳转到目标页。调用方透传
+    // nextUrl 时走上面的快速路径，不会产生额外请求。
+    let parsed = await fetchListPage(buildBaseEndpoint());
+    let current = 1;
+    while (current < page) {
+      const next = parsed.nextUrl;
+      if (!next) {
+        // 目标页超出实际页数：返回空列表并标记到底，总数沿用已知 total。
+        return buildResponse({
+          items: [],
+          page,
+          pages: page,
+          total: parsed.total,
+          hasNext: false,
+          nextUrl: undefined,
+          prevUrl: parsed.prevUrl,
+        });
+      }
+      parsed = await fetchListPage(
+        buildSearchNavigationEndpoint(next, settings.site),
+      );
+      current += 1;
+    }
+    return buildResponse(parsed);
   } catch (error) {
     throw normalizeError(error);
   }
