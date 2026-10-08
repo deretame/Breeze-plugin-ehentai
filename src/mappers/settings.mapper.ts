@@ -1,10 +1,36 @@
-import type { SettingsBundleContract } from "breeze-plugin-kit";
+import type {
+  SettingsBundleContract,
+  SettingsField,
+} from "breeze-plugin-kit";
 import { DEFAULT_SETTINGS, PLUGIN_SOURCE } from "../domain/constants";
 import type { PluginSettings } from "../domain/types";
 
+const LEGACY_COOKIE_FIELDS: SettingsField[] = [
+  {
+    key: "ipb_member_id",
+    kind: "text",
+    label: "ipb_member_id",
+    fnPath: "setEhentaiIpbMemberId",
+  },
+  {
+    key: "ipb_pass_hash",
+    kind: "text",
+    label: "ipb_pass_hash",
+    fnPath: "setEhentaiIpbPassHash",
+  },
+  {
+    key: "igneous",
+    kind: "text",
+    label: "igneous（里站 cookie，可选）",
+    fnPath: "setEhentaiIgneous",
+  },
+];
+
 export function mapSettingsBundle(
   values: PluginSettings = { ...DEFAULT_SETTINGS },
+  options: { legacyHost?: boolean } = {},
 ): SettingsBundleContract {
+  const legacyHost = options.legacyHost ?? false;
   return {
     source: PLUGIN_SOURCE,
     scheme: {
@@ -29,24 +55,7 @@ export function mapSettingsBundle(
             //   kind: "switch",
             //   label: "图片代理模式",
             // },
-            {
-              key: "ipb_member_id",
-              kind: "text",
-              label: "ipb_member_id",
-              fnPath: "setEhentaiIpbMemberId",
-            },
-            {
-              key: "ipb_pass_hash",
-              kind: "text",
-              label: "ipb_pass_hash",
-              fnPath: "setEhentaiIpbPassHash",
-            },
-            {
-              key: "igneous",
-              kind: "text",
-              label: "igneous（里站 cookie，可选）",
-              fnPath: "setEhentaiIgneous",
-            },
+            ...(legacyHost ? LEGACY_COOKIE_FIELDS : []),
           ],
         },
       ],
@@ -56,9 +65,13 @@ export function mapSettingsBundle(
       canLogin: true,
       values: {
         site: values.site,
-        ipb_member_id: values.ipb_member_id,
-        ipb_pass_hash: values.ipb_pass_hash,
-        igneous: values.igneous,
+        ...(legacyHost
+          ? {
+              ipb_member_id: values.ipb_member_id,
+              ipb_pass_hash: values.ipb_pass_hash,
+              igneous: values.igneous,
+            }
+          : {}),
       },
     },
   };

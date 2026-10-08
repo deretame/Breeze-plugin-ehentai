@@ -742,6 +742,35 @@ export async function setEhentaiForumCookie(
       ? readLoginValues(payloadMap)
       : ({} as Record<string, string>);
 
+  // 登录页三字段提交：values 里直接带三个独立值，逐个保存。
+  const hasSplitFields =
+    loginValues.ipb_member_id !== undefined ||
+    loginValues.ipb_pass_hash !== undefined ||
+    loginValues.igneous !== undefined;
+  if (hasSplitFields) {
+    const memberId = String(loginValues.ipb_member_id ?? "").trim();
+    const passHash = String(loginValues.ipb_pass_hash ?? "").trim();
+    const igneous = String(loginValues.igneous ?? "").trim();
+    await Promise.all([
+      saveCookiePart(EH_MEMBER_ID_CONFIG_KEY, memberId),
+      saveCookiePart(EH_PASS_HASH_CONFIG_KEY, passHash),
+      saveCookiePart(EH_IGNEOUS_CONFIG_KEY, igneous),
+    ]);
+    resetExAccessProbeCache();
+    return {
+      source: PLUGIN_SOURCE,
+      message: memberId && passHash ? "已保存论坛 cookie" : "请填写 ipb_member_id 与 ipb_pass_hash",
+      data: {
+        ok: memberId !== "" && passHash !== "",
+        valuesPatch: {
+          [EH_MEMBER_ID_CONFIG_KEY]: memberId,
+          [EH_PASS_HASH_CONFIG_KEY]: passHash,
+          [EH_IGNEOUS_CONFIG_KEY]: igneous,
+        },
+      },
+    };
+  }
+
   const rawCookie =
     key === EH_FORUM_COOKIE_CONFIG_KEY || key === "cookie" || !key
       ? String(loginValues.cookie ?? "").trim() ||
@@ -796,26 +825,34 @@ export async function setEhentaiForumCookie(
 
 async function getLoginBundle(): Promise<LoginBundleContract> {
   const settings = await readSettings(undefined, { skipExProbe: true });
-  const cookie = [
-    settings.ipb_member_id ? `ipb_member_id=${settings.ipb_member_id}` : "",
-    settings.ipb_pass_hash ? `ipb_pass_hash=${settings.ipb_pass_hash}` : "",
-    settings.igneous ? `igneous=${settings.igneous}` : "",
-  ]
-    .filter(Boolean)
-    .join("; ");
   return buildLoginBundle(PLUGIN_SOURCE, {
     title: "E-Hentai 登录",
     fields: [
       {
-        key: "cookie",
-        kind: "multiline",
-        label: "论坛 cookie",
-        help: "粘贴论坛 cookie（含 ipb_member_id 与 ipb_pass_hash）",
+        key: "ipb_member_id",
+        kind: "text",
+        label: "ipb_member_id",
+        required: true,
+      },
+      {
+        key: "ipb_pass_hash",
+        kind: "text",
+        label: "ipb_pass_hash",
+        required: true,
+      },
+      {
+        key: "igneous",
+        kind: "text",
+        label: "igneous（里站 cookie，可选）",
       },
     ],
     submitFnPath: "setEhentaiForumCookie",
     submitText: "保存",
-    values: { cookie },
+    values: {
+      ipb_member_id: settings.ipb_member_id,
+      ipb_pass_hash: settings.ipb_pass_hash,
+      igneous: settings.igneous,
+    },
   });
 }
 

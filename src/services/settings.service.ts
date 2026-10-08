@@ -467,9 +467,29 @@ export async function readSettings(
   };
 }
 
+/**
+ * 旧宿主（< 3.0.34，不懂 getLoginBundle）才显示 settings cookie 字段。
+ * 三段比较：4.0.0 > 3.0.34，缺段按 0 补齐。
+ */
+function compareVersions(a: string, b: string): number {
+  // dart.getAppVersion 返回 JSON 编码串（首尾带引号），先剥掉。
+  const clean = (v: string) => String(v ?? "").trim().replace(/^"+|"+$/g, "");
+  const pa = clean(a).split(".").map((x) => Number(x) || 0);
+  const pb = clean(b).split(".").map((x) => Number(x) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i += 1) {
+    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (diff !== 0) return diff;
+  }
+  return 0;
+}
+
 export async function getSettingsBundleService(
   extern?: Record<string, unknown>,
 ): Promise<SettingsBundleContract> {
   const values = await readSettings(extern, { skipExProbe: true });
-  return mapSettingsBundle(values);
+  const version = await flutterTools.getAppVersion();
+  return mapSettingsBundle(values, {
+    legacyHost: compareVersions(version, "3.0.34") < 0,
+  });
 }
