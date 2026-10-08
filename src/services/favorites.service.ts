@@ -37,13 +37,13 @@ export async function getFavoritesService(
 
   const requestConfig = buildRequestConfig(settings);
   if (!requestConfig) {
-    throw authRequiredError("请先登录后再查看收藏");
+    throw await authRequiredError("请先登录后再查看收藏");
   }
 
   async function fetchFavoritesPage(endpoint: string): Promise<SearchParsed> {
     const html = await httpClient.getText(endpoint, requestConfig);
     if (isFavoritesLoginPage(html)) {
-      throw authRequiredError("登录状态已失效，请重新登录");
+      throw await authRequiredError("登录状态已失效，请重新登录");
     }
     return parseFavoritesPage(html);
   }

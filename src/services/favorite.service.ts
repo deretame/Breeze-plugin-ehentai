@@ -139,13 +139,13 @@ async function listFavoriteFoldersService(
 ): Promise<FavoriteFoldersResult> {
   const requestConfig = buildRequestConfig(settings);
   if (!requestConfig) {
-    throw authRequiredError("请先登录后再查看收藏分类");
+    throw await authRequiredError("请先登录后再查看收藏分类");
   }
 
   const favoritesEndpoint = buildFavoritesEndpoint(settings.site);
   const html = await httpClient.getText(favoritesEndpoint, requestConfig);
   if (isFavoritesLoginPage(html)) {
-    throw authRequiredError("登录状态已失效，请重新登录");
+    throw await authRequiredError("登录状态已失效，请重新登录");
   }
 
   const folders = parseFavoriteFoldersPage(html);
@@ -160,7 +160,7 @@ async function applyFavorite(
 ): Promise<void> {
   const requestConfig = buildRequestConfig(settings);
   if (!requestConfig) {
-    throw authRequiredError("请先登录后再收藏");
+    throw await authRequiredError("请先登录后再收藏");
   }
 
   const normalizedFolderId = folderId === "favdel" ? folderId : normalizeFolderId(folderId);
@@ -177,7 +177,7 @@ async function applyFavorite(
     requestConfig,
   );
   if (isFavoritesLoginPage(html)) {
-    throw authRequiredError("登录状态已失效，请重新登录");
+    throw await authRequiredError("登录状态已失效，请重新登录");
   }
   if (!String(html ?? "").trim()) {
     throw new Error("收藏请求返回空响应");
