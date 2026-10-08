@@ -55,9 +55,7 @@ export async function getFavoritesService(
   // 第 1 页：直接取收藏首页。
   if (page <= 1) {
     return mapPage(
-      await fetchFavoritesPage(
-        buildFavoritesEndpoint(settings.site, { favcat, sort }),
-      ),
+      await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort })),
     );
   }
 
@@ -65,18 +63,14 @@ export async function getFavoritesService(
   // 无限滚动等正常翻页流程走这里，extern.nextUrl 由 mapSearchResult 透出。
   if (nextUrlFromExtern) {
     return mapPage(
-      await fetchFavoritesPage(
-        buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site),
-      ),
+      await fetchFavoritesPage(buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)),
     );
   }
 
   // 第 N 页但没有游标：收藏页不支持 `?page=`（会被服务端忽略并返回第一页），
   // 只能从第一页开始跟随 nextUrl 逐页跳转到目标页。调用方透传 nextUrl 时
   // 走上面的快速路径，不会产生额外请求。
-  let parsed = await fetchFavoritesPage(
-    buildFavoritesEndpoint(settings.site, { favcat, sort }),
-  );
+  let parsed = await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort }));
   let current = 1;
   while (current < page) {
     const next = parsed.nextUrl;
@@ -92,9 +86,7 @@ export async function getFavoritesService(
         prevUrl: parsed.prevUrl,
       });
     }
-    parsed = await fetchFavoritesPage(
-      buildSearchNavigationEndpoint(next, settings.site),
-    );
+    parsed = await fetchFavoritesPage(buildSearchNavigationEndpoint(next, settings.site));
     current += 1;
   }
   return mapPage(parsed);

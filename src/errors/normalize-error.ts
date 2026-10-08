@@ -30,6 +30,14 @@ export function normalizeError(error: unknown): PluginError {
 
   if (error instanceof Error) {
     const message = error.message || "Unknown plugin error";
+    try {
+      const parsed = JSON.parse(message) as { type?: unknown };
+      if (parsed && parsed.type === "unauthorized") {
+        return error as PluginError;
+      }
+    } catch {
+      // 非 JSON 错误走常规归一化。
+    }
     const lower = message.toLowerCase();
     if (BLOCKED_MARKERS.some((marker) => lower.includes(marker))) {
       return upstreamBlockedError(message, { lastErrorMessage: message, name: error.name });

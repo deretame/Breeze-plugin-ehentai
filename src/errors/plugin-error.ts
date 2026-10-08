@@ -1,3 +1,4 @@
+import { buildUnauthorizedError } from "breeze-plugin-kit";
 import type { PluginErrorCode, PluginErrorDetails } from "../domain/types";
 
 function formatDetails(details?: PluginErrorDetails): string {
@@ -61,7 +62,9 @@ export function parseError(message: string, details?: PluginErrorDetails): Plugi
 }
 
 export function authRequiredError(message: string, details?: PluginErrorDetails): PluginError {
-  return new PluginError("AUTH_REQUIRED", message, false, details);
+  const cleanMessage = String(message ?? "").trim() || "登录过期，请重新登录";
+  const unauthorized = buildUnauthorizedError("ehentai", cleanMessage);
+  return new PluginError("AUTH_REQUIRED", unauthorized.message, false, details);
 }
 
 export function contractError(message: string, details?: PluginErrorDetails): PluginError {

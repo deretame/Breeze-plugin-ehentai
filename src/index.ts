@@ -14,12 +14,14 @@ import type {
   FetchImageBytesPayload,
   FilterBundleContract,
   InfoContract,
+  LoginBundleContract,
   PreviewContentContract,
   PreviewPayload,
   ReadSnapshotContract,
   SearchResultContract,
   SettingsBundleContract,
 } from "breeze-plugin-kit";
+import { buildLoginBundle, readLoginValues } from "breeze-plugin-kit";
 import {
   EH_COOKIE_POLL_INTERVAL_MS,
   EH_FORUM_COOKIE_CONFIG_KEY,
@@ -332,9 +334,7 @@ export async function getFunctionPage(
     // 第 N 页且调用方透传了上一页返回的 nextUrl：直接跳转（1 次请求）。
     if (nextUrlFromExtern) {
       return buildResponse(
-        await fetchListPage(
-          buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site),
-        ),
+        await fetchListPage(buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)),
       );
     }
 
@@ -357,9 +357,7 @@ export async function getFunctionPage(
           prevUrl: parsed.prevUrl,
         });
       }
-      parsed = await fetchListPage(
-        buildSearchNavigationEndpoint(next, settings.site),
-      );
+      parsed = await fetchListPage(buildSearchNavigationEndpoint(next, settings.site));
       current += 1;
     }
     return buildResponse(parsed);
@@ -738,10 +736,17 @@ export async function setEhentaiForumCookie(
 ): Promise<Record<string, unknown>> {
   const payloadMap = asRecord(payload);
   const { value, key } = asSetterPayload(payloadMap);
+  const core = asRecord(payloadMap.core);
+  const loginValues =
+    payloadMap.values !== undefined || core.values !== undefined
+      ? readLoginValues(payloadMap)
+      : ({} as Record<string, string>);
 
   const rawCookie =
     key === EH_FORUM_COOKIE_CONFIG_KEY || key === "cookie" || !key
-      ? extractCookieFromPayload(payloadMap) || String(value ?? "").trim()
+      ? String(loginValues.cookie ?? "").trim() ||
+        extractCookieFromPayload(payloadMap) ||
+        String(value ?? "").trim()
       : String(value ?? "").trim();
 
   const sanitizedIncomingCookie = removeCookieNames(rawCookie, ["igneous", "cf_clearance"]);
@@ -789,6 +794,31 @@ export async function setEhentaiForumCookie(
   };
 }
 
+async function getLoginBundle(): Promise<LoginBundleContract> {
+  const settings = await readSettings(undefined, { skipExProbe: true });
+  const cookie = [
+    settings.ipb_member_id ? `ipb_member_id=${settings.ipb_member_id}` : "",
+    settings.ipb_pass_hash ? `ipb_pass_hash=${settings.ipb_pass_hash}` : "",
+    settings.igneous ? `igneous=${settings.igneous}` : "",
+  ]
+    .filter(Boolean)
+    .join("; ");
+  return buildLoginBundle(PLUGIN_SOURCE, {
+    title: "E-Hentai 登录",
+    fields: [
+      {
+        key: "cookie",
+        kind: "multiline",
+        label: "论坛 cookie",
+        help: "粘贴论坛 cookie（含 ipb_member_id 与 ipb_pass_hash）",
+      },
+    ],
+    submitFnPath: "setEhentaiForumCookie",
+    submitText: "保存",
+    values: { cookie },
+  });
+}
+
 export async function init() {
   await migrateLegacyForumCookieIfNeeded();
   // Proactively resolve EX igneous (or fall back to EH) on plugin load so the
@@ -800,6 +830,7 @@ export async function init() {
 export default {
   init,
   getInfo,
+  getLoginBundle,
   getFunctionPage,
   getLatestData,
   getPopularData,

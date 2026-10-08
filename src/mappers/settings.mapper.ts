@@ -53,6 +53,7 @@ export function mapSettingsBundle(
     },
     data: {
       canShowUserInfo: false,
+      canLogin: true,
       values: {
         site: values.site,
         ipb_member_id: values.ipb_member_id,
