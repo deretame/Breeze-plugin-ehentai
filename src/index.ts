@@ -8,13 +8,20 @@ import type {
   ComicDetailContract,
   ComicDetailPayload,
   ComicPagedListContract,
+  ComicListScene,
+  ComicListSceneBundleContract,
   FavoriteWorkflowContinuePayload,
   FavoriteWorkflowResult,
   FavoriteWorkflowStartPayload,
   FetchImageBytesPayload,
   FilterBundleContract,
+  GetPluginCloudFavoritePagesBundlePayload,
+  GetPluginHomePagesBundlePayload,
   InfoContract,
   LoginBundleContract,
+  PluginCloudFavoritePagesBundleContract,
+  PluginHomePagesBundleContract,
+  PluginHomeTab,
   PreviewContentContract,
   PreviewPayload,
   ReadSnapshotContract,
@@ -31,6 +38,7 @@ import {
   EH_MEMBER_ID_CONFIG_KEY,
   EH_PASS_HASH_CONFIG_KEY,
   PLUGIN_SOURCE,
+  PLUGIN_UUID,
 } from "./domain/constants";
 import { normalizeError } from "./errors/normalize-error";
 import type { SearchParsed } from "./domain/types";
@@ -366,7 +374,7 @@ export async function getFunctionPage(
   }
 }
 
-export async function getFavorites(
+export async function getCloudFavoriteData(
   payload: Record<string, unknown> = {},
 ): Promise<ComicPagedListContract> {
   try {
@@ -406,12 +414,15 @@ export async function getFavorites(
   }
 }
 
+/** 历史命名兼容：等价于 getCloudFavoriteData。 */
+export const getFavorites = getCloudFavoriteData;
+
 const FAVORITES_SORTS = [
   { label: "收藏时间", value: "f" },
   { label: "发布时间", value: "p" },
 ] as const;
 
-export async function getFavoritesFilterBundle(): Promise<FilterBundleContract> {
+export async function getCloudFavoriteFilterBundle(): Promise<FilterBundleContract> {
   return {
     source: PLUGIN_SOURCE,
     scheme: {
@@ -456,6 +467,9 @@ export async function getFavoritesFilterBundle(): Promise<FilterBundleContract> 
     },
   };
 }
+
+/** 历史命名兼容：等价于 getCloudFavoriteFilterBundle。 */
+export const getFavoritesFilterBundle = getCloudFavoriteFilterBundle;
 
 export async function startFavoriteAction(
   payload: FavoriteWorkflowStartPayload,
@@ -855,6 +869,99 @@ async function getLoginBundle(): Promise<LoginBundleContract> {
     },
   });
 }
+function buildEhentaiLatestScene(): ComicListScene {
+  return {
+    title: "最新",
+    source: PLUGIN_UUID,
+    body: {
+      type: "pluginPagedComicList",
+      request: { fnPath: "getLatestData", core: {}, extern: { source: "latest" } },
+    },
+  };
+}
+
+function buildEhentaiPopularScene(): ComicListScene {
+  return {
+    title: "热门",
+    source: PLUGIN_UUID,
+    body: {
+      type: "pluginPagedComicList",
+      request: { fnPath: "getPopularData", core: {}, extern: { source: "popular" } },
+    },
+  };
+}
+
+function buildEhentaiRankingScene(): ComicListScene {
+  return {
+    title: "排行榜",
+    source: PLUGIN_UUID,
+    body: {
+      type: "pluginPagedComicList",
+      request: {
+        fnPath: "getRankingData",
+        core: {},
+        extern: { source: "ranking", rankType: "day" },
+      },
+    },
+    filter: {
+      fnPath: "getRankingFilterBundle",
+      core: {},
+      extern: { source: "ranking" },
+    },
+  };
+}
+
+function buildEhentaiCloudFavoriteScene(): ComicListScene {
+  return {
+    title: "云端收藏",
+    source: PLUGIN_UUID,
+    body: {
+      type: "pluginPagedComicList",
+      request: { fnPath: "getCloudFavoriteData", core: {}, extern: {} },
+    },
+    filter: {
+      fnPath: "getCloudFavoriteFilterBundle",
+      core: {},
+      extern: {},
+    },
+  };
+}
+
+export async function getCloudFavoriteSceneBundle(): Promise<ComicListSceneBundleContract> {
+  return {
+    source: PLUGIN_SOURCE,
+    scheme: { version: "1.0.0", type: "comicListSceneBundle" },
+    data: { scene: buildEhentaiCloudFavoriteScene() },
+  };
+}
+
+export async function getPluginHomePagesBundle(
+  _payload: GetPluginHomePagesBundlePayload = {},
+): Promise<PluginHomePagesBundleContract> {
+  const tabs: PluginHomeTab[] = [
+    { id: "latest", title: "最新", scene: buildEhentaiLatestScene() },
+    { id: "popular", title: "热门", scene: buildEhentaiPopularScene() },
+    { id: "ranking", title: "排行榜", scene: buildEhentaiRankingScene() },
+  ];
+  return {
+    source: PLUGIN_SOURCE,
+    scheme: { version: "1.0.0", type: "homePagesBundle" },
+    data: { tabs },
+  };
+}
+
+export async function getPluginCloudFavoritePagesBundle(
+  _payload: GetPluginCloudFavoritePagesBundlePayload = {},
+): Promise<PluginCloudFavoritePagesBundleContract> {
+  const tabs: PluginHomeTab[] = [
+    { id: "cloudFavorite", title: "云端收藏", scene: buildEhentaiCloudFavoriteScene() },
+  ];
+  return {
+    source: PLUGIN_SOURCE,
+    scheme: { version: "1.0.0", type: "cloudFavoritePagesBundle" },
+    data: { tabs },
+  };
+}
 
 export async function init() {
   await migrateLegacyForumCookieIfNeeded();
@@ -873,8 +980,11 @@ export default {
   getPopularData,
   getRankingData,
   getRankingFilterBundle,
+  getCloudFavoriteData,
   getFavorites,
+  getCloudFavoriteFilterBundle,
   getFavoritesFilterBundle,
+  getCloudFavoriteSceneBundle,
   startFavoriteAction,
   continueFavoriteAction,
   searchComic,
@@ -887,6 +997,8 @@ export default {
   getSettingsBundle,
   getAdvancedSearchScheme,
   getCapabilitiesBundle,
+  getPluginHomePagesBundle,
+  getPluginCloudFavoritePagesBundle,
   startEhentaiWebLogin,
   setEhentaiForumCookie,
   setEhentaiIpbMemberId,

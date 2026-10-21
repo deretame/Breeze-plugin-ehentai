@@ -55,6 +55,8 @@ export function mapInfo(): InfoContract {
     home: PLUGIN_HOME,
     updateUrl: PLUGIN_UPDATE_URL,
     npmName: "breeze-plugin-ehentai",
+    haveHome: true,
+    haveCloudFavorite: true,
     function: [
       {
         id: "latest",
@@ -109,7 +111,7 @@ export function mapInfo(): InfoContract {
         },
       },
       {
-        id: "favorites",
+        id: "cloudFavorite",
         title: "收藏",
         action: {
           type: "openComicList",
@@ -117,11 +119,11 @@ export function mapInfo(): InfoContract {
             scene: buildComicListScene({
               title: "收藏",
               request: {
-                fnPath: "getFavorites",
+                fnPath: "getCloudFavoriteData",
                 extern: {},
               },
               filter: {
-                fnPath: "getFavoritesFilterBundle",
+                fnPath: "getCloudFavoriteFilterBundle",
                 extern: {},
               },
             }),

@@ -170,8 +170,8 @@ importers:
         specifier: ^1.18.0
         version: 1.18.1(debug@4.4.3)
       breeze-plugin-kit:
-        specifier: ^0.14.0
-        version: 0.14.0
+        specifier: ^0.18.0
+        version: 0.18.0
     devDependencies:
       '@rspack/cli':
         specifier: ^2.1.8
@@ -1112,8 +1112,8 @@ packages:
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
 
-  breeze-plugin-kit@0.14.0:
-    resolution: {integrity: sha512-fEbx4W8y6jw3XsIUYaCqNcAUZRPdqlxMV7B8/G8B1vHSATwLIVKOp2YWQB2qGgd0xcVMzpxacEqu136AjFwEZw==}
+  breeze-plugin-kit@0.18.0:
+    resolution: {integrity: sha512-8ePR2iYZcv7Rf/VHx9HEFWM/PkLYY5+7P6aRZKFh1I/uQv0dviPM0yqjWqzotPRRUvIS1UcnXY8NRvh+3zgVxg==}
 
   call-bind-apply-helpers@1.0.2:
     resolution: {integrity: sha512-Sp1ablJ0ivDkSzjcaJdxEunN5/XvksFJ2sMBFfq6x0ryhQV/2b/KwFe21cMpmHtPOSij8K99/wSfoEuTObmuMQ==}
@@ -1929,7 +1929,7 @@ snapshots:
 
   boolbase@1.0.0: {}
 
-  breeze-plugin-kit@0.14.0: {}
+  breeze-plugin-kit@0.18.0: {}
 
   call-bind-apply-helpers@1.0.2:
     dependencies:
