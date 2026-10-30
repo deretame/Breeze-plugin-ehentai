@@ -14,18 +14,16 @@ type FunctionPageFeed = {
   };
 };
 
-function listPageHtml(
-  options?: {
-    withNext?: boolean;
-    nextHref?: string;
-    gidA?: string;
-    tokenA?: string;
-    titleA?: string;
-    gidB?: string;
-    tokenB?: string;
-    titleB?: string;
-  },
-): string {
+function listPageHtml(options?: {
+  withNext?: boolean;
+  nextHref?: string;
+  gidA?: string;
+  tokenA?: string;
+  titleA?: string;
+  gidB?: string;
+  tokenB?: string;
+  titleB?: string;
+}): string {
   const nextHref = options?.nextHref ?? "https://e-hentai.org/?next=7770001";
   const nextNav = options?.withNext
     ? `<div><a id="unext" href="${nextHref}">Next &gt;</a></div>`

@@ -141,13 +141,22 @@ export async function searchComicService(
   const keyword = normalizeKeyword(payload.keyword);
   const page = normalizePage(payload.page, 1);
   const extern = asRecord(payload.extern);
+  const isSearchAggregate =
+    payloadMap.isSearchAggregate === true ||
+    String(payloadMap.isSearchAggregate ?? "").trim().toLowerCase() ===
+      "true";
+  const currentUrlFromExtern = String(extern.currentUrl ?? "").trim();
   const nextUrlFromExtern = String(extern.nextUrl ?? "").trim();
   const advancedQuery = buildAdvancedQuery(extern, payloadMap);
-
+  // 书签跳转回放：跳转那一次请求的 payload 顶层带 isSearchAggregate=true，
+  // 直抓 extern 里记下的 currentUrl（当前页实际 URL）；平时走 nextUrl 链
+  // （翻页）或关键词拼 URL（首屏）。标志只读顶层，不进 extern。
   const endpoint =
-    page > 1 && nextUrlFromExtern
-      ? buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)
-      : buildSearchEndpoint(keyword, page, settings.site, advancedQuery);
+    isSearchAggregate && currentUrlFromExtern
+      ? buildSearchNavigationEndpoint(currentUrlFromExtern, settings.site)
+      : page > 1 && nextUrlFromExtern
+        ? buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)
+        : buildSearchEndpoint(keyword, page, settings.site, advancedQuery);
 
   const requestConfig = buildRequestConfig(settings);
   const html = requestConfig
@@ -155,5 +164,5 @@ export async function searchComicService(
     : await httpClient.getText(endpoint);
   const parsed = parseSearchPage(html);
 
-  return mapSearchResult({ ...payload, page, extern }, parsed);
+  return mapSearchResult({ ...payload, page, extern }, parsed, endpoint);
 }

@@ -40,54 +40,59 @@ export async function getFavoritesService(
     throw await authRequiredError("请先登录后再查看收藏");
   }
 
-  async function fetchFavoritesPage(endpoint: string): Promise<SearchParsed> {
+  async function fetchFavoritesPage(
+    endpoint: string,
+  ): Promise<{ parsed: SearchParsed; endpoint: string }> {
     const html = await httpClient.getText(endpoint, requestConfig);
     if (isFavoritesLoginPage(html)) {
       throw await authRequiredError("登录状态已失效，请重新登录");
     }
-    return parseFavoritesPage(html);
+    return { parsed: parseFavoritesPage(html), endpoint };
   }
 
   const mappedExtern = { ...extern, favcat: favcat || "a", sort };
-  const mapPage = (parsed: SearchParsed) =>
-    mapSearchResult({ ...payload, page, extern: mappedExtern }, parsed);
+  const mapPage = (parsed: SearchParsed, endpoint: string) =>
+    mapSearchResult({ ...payload, page, extern: mappedExtern }, parsed, endpoint);
 
   // 第 1 页：直接取收藏首页。
   if (page <= 1) {
-    return mapPage(
-      await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort })),
-    );
+    const first = await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort }));
+    return mapPage(first.parsed, first.endpoint);
   }
 
   // 第 N 页且调用方透传了上一页返回的 nextUrl：直接跳转（1 次请求）。
   // 无限滚动等正常翻页流程走这里，extern.nextUrl 由 mapSearchResult 透出。
   if (nextUrlFromExtern) {
-    return mapPage(
-      await fetchFavoritesPage(buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site)),
+    const jumped = await fetchFavoritesPage(
+      buildSearchNavigationEndpoint(nextUrlFromExtern, settings.site),
     );
+    return mapPage(jumped.parsed, jumped.endpoint);
   }
 
   // 第 N 页但没有游标：收藏页不支持 `?page=`（会被服务端忽略并返回第一页），
   // 只能从第一页开始跟随 nextUrl 逐页跳转到目标页。调用方透传 nextUrl 时
   // 走上面的快速路径，不会产生额外请求。
-  let parsed = await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort }));
+  let followed = await fetchFavoritesPage(buildFavoritesEndpoint(settings.site, { favcat, sort }));
   let current = 1;
   while (current < page) {
-    const next = parsed.nextUrl;
+    const next = followed.parsed.nextUrl;
     if (!next) {
       // 目标页超出实际页数：返回空列表并标记到底，总数沿用已知 total。
-      return mapPage({
-        items: [],
-        page,
-        pages: page,
-        total: parsed.total,
-        hasNext: false,
-        nextUrl: undefined,
-        prevUrl: parsed.prevUrl,
-      });
+      return mapPage(
+        {
+          items: [],
+          page,
+          pages: page,
+          total: followed.parsed.total,
+          hasNext: false,
+          nextUrl: undefined,
+          prevUrl: followed.parsed.prevUrl,
+        },
+        followed.endpoint,
+      );
     }
-    parsed = await fetchFavoritesPage(buildSearchNavigationEndpoint(next, settings.site));
+    followed = await fetchFavoritesPage(buildSearchNavigationEndpoint(next, settings.site));
     current += 1;
   }
-  return mapPage(parsed);
+  return mapPage(followed.parsed, followed.endpoint);
 }

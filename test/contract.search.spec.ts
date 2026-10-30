@@ -133,6 +133,21 @@ describe("search contract", () => {
     expect(result.extern?.nextUrl).toBe("");
   });
 
+  test("test_searchComic_response_extern_records_current_url", async () => {
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    getTextSpy.mockResolvedValueOnce(`
+      <div class="searchnav">
+        <div><a id="dnext" href="https://e-hentai.org/?f_search=keqing&amp;next=3779110">Next &gt;</a></div>
+      </div>
+      <table class="itg gltc"><tbody></tbody></table>
+    `);
+
+    const result = await searchComic({ keyword: "keqing", page: 1 });
+
+    expect(result.extern?.currentUrl).toContain("f_search=keqing");
+    expect(result.extern?.nextUrl).toContain("next=3779110");
+  });
+
   test("test_searchComic_page2_uses_extern_next_url_instead_of_page_param", async () => {
     const getTextSpy = rs.spyOn(httpClient, "getText");
     getTextSpy.mockResolvedValueOnce(`
@@ -154,5 +169,31 @@ describe("search contract", () => {
     const calledUrl = String(getTextSpy.mock.calls[0]?.[0] ?? "");
     expect(calledUrl).toContain("next=3779110");
     expect(calledUrl).not.toContain("page=");
+  });
+
+  test("test_searchComic_bookmark_jump_replays_current_url_directly", async () => {
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    getTextSpy.mockResolvedValueOnce(`
+      <div class="searchnav">
+        <div><span id="dnext">Next &gt;</span></div>
+      </div>
+      <table class="itg gltc"><tbody></tbody></table>
+    `);
+
+    const bookmarkedCurrentUrl = "https://e-hentai.org/?f_search=keqing&next=3779110";
+    const result = await searchComic({
+      keyword: "keqing",
+      page: 2,
+      isSearchAggregate: true,
+      extern: {
+        currentUrl: bookmarkedCurrentUrl,
+        nextUrl: "https://e-hentai.org/?f_search=keqing&next=9999999",
+      },
+    });
+
+    expect(getTextSpy).toHaveBeenCalledTimes(1);
+    expect(String(getTextSpy.mock.calls[0]?.[0] ?? "")).toBe(bookmarkedCurrentUrl);
+    expect(result.extern?.currentUrl).toBe(bookmarkedCurrentUrl);
+    expect(result.extern?.nextUrl).toBe("");
   });
 });

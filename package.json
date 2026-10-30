@@ -1,6 +1,6 @@
 {
   "name": "breeze-plugin-ehentai",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "packageManager": "pnpm@12.14.0",
   "repository": {

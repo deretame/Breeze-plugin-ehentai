@@ -1,6 +1,7 @@
 export type SearchComicPayload = {
   keyword?: string;
   page?: number;
+  isSearchAggregate?: boolean;
   extern?: Record<string, unknown>;
 };
 

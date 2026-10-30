@@ -2,6 +2,7 @@ import type { ActionItem, SearchResultContract } from "breeze-plugin-kit";
 import { PLUGIN_SOURCE } from "../domain/constants";
 import type { SearchComicPayload, SearchParsed } from "../domain/types";
 import { buildMediaPath } from "../utils/media-path";
+import { asRecord } from "../utils/guards";
 import { sanitizeMediaUrl } from "../utils/url";
 
 const EMPTY_ACTION = {} as ActionItem["onTap"];
@@ -9,11 +10,13 @@ const EMPTY_ACTION = {} as ActionItem["onTap"];
 export function mapSearchResult(
   payload: SearchComicPayload,
   parsed: SearchParsed,
+  endpoint: string,
 ): SearchResultContract {
   const currentPage = Math.max(1, Number(payload.page ?? parsed.page ?? 1));
   const pages = Math.max(parsed.pages, currentPage + (parsed.hasNext ? 1 : 0));
   const extern = {
-    ...payload.extern,
+    ...asRecord(payload.extern),
+    currentUrl: endpoint,
     nextUrl: parsed.nextUrl ?? "",
     prevUrl: parsed.prevUrl ?? "",
   };

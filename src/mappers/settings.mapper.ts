@@ -1,7 +1,4 @@
-import type {
-  SettingsBundleContract,
-  SettingsField,
-} from "breeze-plugin-kit";
+import type { SettingsBundleContract, SettingsField } from "breeze-plugin-kit";
 import { DEFAULT_SETTINGS, PLUGIN_SOURCE } from "../domain/constants";
 import type { PluginSettings } from "../domain/types";
 

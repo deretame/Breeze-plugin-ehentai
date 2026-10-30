@@ -74,6 +74,7 @@ import { asRecord } from "./utils/guards";
 type SearchComicPayload = {
   keyword?: string;
   page?: number;
+  isSearchAggregate?: boolean;
   extern?: Record<string, unknown>;
 };
 
@@ -285,15 +286,24 @@ export async function getFunctionPage(
       return endpoint;
     }
 
-    async function fetchListPage(endpoint: string): Promise<SearchParsed> {
+    async function fetchListPage(
+      endpoint: string,
+    ): Promise<{ parsed: SearchParsed; endpoint: string }> {
       const html = requestConfig
         ? await httpClient.getText(endpoint, requestConfig)
         : await httpClient.getText(endpoint);
-      return parseSearchPage(html);
+      return { parsed: parseSearchPage(html), endpoint };
     }
 
-    function buildResponse(parsed: SearchParsed): ComicPagedListContract {
-      const mapped = mapSearchResult({ page, extern: { ...extern, source } }, parsed);
+    function buildResponse(fetched: {
+      parsed: SearchParsed;
+      endpoint: string;
+    }): ComicPagedListContract {
+      const mapped = mapSearchResult(
+        { page, extern: { ...extern, source } },
+        fetched.parsed,
+        fetched.endpoint,
+      );
 
       return {
         source: PLUGIN_SOURCE,
@@ -349,26 +359,29 @@ export async function getFunctionPage(
     // 第 N 页但没有游标：首页 / 热门页不支持 `?page=`（会被服务端忽略并返回
     // 第一页），只能从第一页开始跟随 nextUrl 逐页跳转到目标页。调用方透传
     // nextUrl 时走上面的快速路径，不会产生额外请求。
-    let parsed = await fetchListPage(buildBaseEndpoint());
+    let followed = await fetchListPage(buildBaseEndpoint());
     let current = 1;
     while (current < page) {
-      const next = parsed.nextUrl;
+      const next = followed.parsed.nextUrl;
       if (!next) {
         // 目标页超出实际页数：返回空列表并标记到底，总数沿用已知 total。
         return buildResponse({
-          items: [],
-          page,
-          pages: page,
-          total: parsed.total,
-          hasNext: false,
-          nextUrl: undefined,
-          prevUrl: parsed.prevUrl,
+          parsed: {
+            items: [],
+            page,
+            pages: page,
+            total: followed.parsed.total,
+            hasNext: false,
+            nextUrl: undefined,
+            prevUrl: followed.parsed.prevUrl,
+          },
+          endpoint: followed.endpoint,
         });
       }
-      parsed = await fetchListPage(buildSearchNavigationEndpoint(next, settings.site));
+      followed = await fetchListPage(buildSearchNavigationEndpoint(next, settings.site));
       current += 1;
     }
-    return buildResponse(parsed);
+    return buildResponse(followed);
   } catch (error) {
     throw normalizeError(error);
   }

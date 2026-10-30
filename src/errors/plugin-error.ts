@@ -66,9 +66,16 @@ export function parseError(message: string, details?: PluginErrorDetails): Plugi
  *（旧登录页是账号密码表单，cookie 登录用不上；toast 指引去设置页）。
  */
 function compareVersions(a: string, b: string): number {
-  const clean = (v: string) => String(v ?? "").trim().replace(/^"+|"+$/g, "");
-  const pa = clean(a).split(".").map((x) => Number(x) || 0);
-  const pb = clean(b).split(".").map((x) => Number(x) || 0);
+  const clean = (v: string) =>
+    String(v ?? "")
+      .trim()
+      .replace(/^"+|"+$/g, "");
+  const pa = clean(a)
+    .split(".")
+    .map((x) => Number(x) || 0);
+  const pb = clean(b)
+    .split(".")
+    .map((x) => Number(x) || 0);
   const len = Math.max(pa.length, pb.length);
   for (let i = 0; i < len; i += 1) {
     const diff = (pa[i] ?? 0) - (pb[i] ?? 0);

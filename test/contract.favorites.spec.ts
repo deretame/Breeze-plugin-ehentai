@@ -34,19 +34,18 @@ async function fetchFavorites(payload: Record<string, unknown> = {}): Promise<Fa
   })) as unknown as FavoritesFeed;
 }
 
-function favoritesPageHtml(
-  options?: {
-    withNext?: boolean;
-    nextHref?: string;
-    gidA?: string;
-    tokenA?: string;
-    titleA?: string;
-    gidB?: string;
-    tokenB?: string;
-    titleB?: string;
-  },
-): string {
-  const nextHref = options?.nextHref ?? "https://e-hentai.org/favorites.php?next=1452536-1610434311";
+function favoritesPageHtml(options?: {
+  withNext?: boolean;
+  nextHref?: string;
+  gidA?: string;
+  tokenA?: string;
+  titleA?: string;
+  gidB?: string;
+  tokenB?: string;
+  titleB?: string;
+}): string {
+  const nextHref =
+    options?.nextHref ?? "https://e-hentai.org/favorites.php?next=1452536-1610434311";
   const nextNav = options?.withNext
     ? `<div><a id="unext" href="${nextHref}">Next &gt;</a></div>`
     : `<div><span id="unext">Next &gt;</span></div>`;
