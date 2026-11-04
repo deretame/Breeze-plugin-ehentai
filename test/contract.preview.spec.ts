@@ -54,7 +54,10 @@ describe("preview contract", () => {
     const result = await getPreview({ comicId: "123456/abcdef", page: 1 });
     const items = result.data.preview.items;
 
-    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/g/123456/abcdef/");
+    // 与 JHenTai 对齐：默认带上 nw=1 / datatags=1。
+    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/g/123456/abcdef/", {
+      headers: { Cookie: "nw=1; datatags=1" },
+    });
     expect(getBytesSpy).toHaveBeenCalledTimes(1);
     expect(bridgeCall).toHaveBeenCalledWith("image.crop_by_regions", new Uint8Array([9, 8, 7]), [
       { number: 1, x: 0, y: 0, width: 200, height: 284 },

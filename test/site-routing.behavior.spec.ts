@@ -116,7 +116,8 @@ describe("site routing behavior", () => {
     expect(String(getTextSpy.mock.calls[1]?.[0] ?? "")).toBe("https://exhentai.org/s/a1/123-1");
     expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined, {
       headers: {
-        Cookie: "ipb_member_id=1; igneous=stale",
+        // 与 JHenTai 对齐：默认带上 nw=1 / datatags=1，用户 cookie 叠加在后。
+        Cookie: "nw=1; datatags=1; ipb_member_id=1; igneous=stale",
       },
     });
   });

@@ -17,7 +17,10 @@ describe("fetchImageBytes contract", () => {
       timeoutMs: 3200,
     });
 
-    expect(getBytesSpy).toHaveBeenCalledWith("https://s.exhentai.org/t/aa/bb/cc.jpg", 3200);
+    // 与 JHenTai 对齐：即使没有用户 cookie，也带上 nw=1 / datatags=1。
+    expect(getBytesSpy).toHaveBeenCalledWith("https://s.exhentai.org/t/aa/bb/cc.jpg", 3200, {
+      headers: { Cookie: "nw=1; datatags=1" },
+    });
     expect(result).toEqual(bytes);
   });
 
@@ -59,8 +62,9 @@ describe("fetchImageBytes contract", () => {
       },
     });
 
-    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1");
-    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined);
+    const defaultHeaders = { headers: { Cookie: "nw=1; datatags=1" } };
+    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1", defaultHeaders);
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined, defaultHeaders);
     expect(result).toEqual(bytes);
   });
 });

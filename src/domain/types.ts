@@ -31,6 +31,10 @@ export type PluginSettings = {
   ipb_pass_hash: string;
   igneous: string;
   forumCookie: string;
+  /** 墙内 IP 直连（域名前置）开关。 */
+  directConnect: boolean;
+  /** 自定义 IP 覆盖，格式 `host=ip1,ip2;host2=ip3`。 */
+  directCustomIps: string;
 };
 
 export type SearchParsedItem = {

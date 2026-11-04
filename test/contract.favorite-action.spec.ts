@@ -73,7 +73,10 @@ describe("favorite action contract", () => {
         update: "1",
       },
       expect.objectContaining({
-        headers: { Cookie: "ipb_member_id=123456; ipb_pass_hash=deadbeef" },
+        headers: {
+          // 与 JHenTai 对齐：默认带上 nw=1 / datatags=1，用户 cookie 叠加在后。
+          Cookie: "nw=1; datatags=1; ipb_member_id=123456; ipb_pass_hash=deadbeef",
+        },
       }),
     );
   });
