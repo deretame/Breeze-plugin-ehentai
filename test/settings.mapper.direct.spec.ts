@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test } from "@rstest/core";
 import { DEFAULT_SETTINGS } from "../src/domain/constants";
 import { DEFAULT_FRONT_HOSTS } from "../src/network/ip-direct";
-import { customIpsLabel, directConnectLabel, mapSettingsBundle } from "../src/mappers/settings.mapper";
+import {
+  customIpsLabel,
+  directConnectLabel,
+  mapSettingsBundle,
+} from "../src/mappers/settings.mapper";
 
 const HOST_GLOBAL = "__http_set_front_hosts";
 
@@ -67,7 +71,9 @@ describe("settings mapper · 墙内直连 label", () => {
 
   test("test_customIpsLabel_marks_override", () => {
     setHostSupported(true);
-    expect(customIpsLabel({ ...DEFAULT_SETTINGS, directCustomIps: "e-hentai.org=1.2.3.4" })).toContain("已覆盖");
+    expect(
+      customIpsLabel({ ...DEFAULT_SETTINGS, directCustomIps: "e-hentai.org=1.2.3.4" }),
+    ).toContain("已覆盖");
     expect(customIpsLabel({ ...DEFAULT_SETTINGS })).toContain("留空用内置表");
   });
 

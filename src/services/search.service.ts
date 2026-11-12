@@ -143,8 +143,9 @@ export async function searchComicService(
   const extern = asRecord(payload.extern);
   const isSearchAggregate =
     payloadMap.isSearchAggregate === true ||
-    String(payloadMap.isSearchAggregate ?? "").trim().toLowerCase() ===
-      "true";
+    String(payloadMap.isSearchAggregate ?? "")
+      .trim()
+      .toLowerCase() === "true";
   const currentUrlFromExtern = String(extern.currentUrl ?? "").trim();
   const nextUrlFromExtern = String(extern.nextUrl ?? "").trim();
   const advancedQuery = buildAdvancedQuery(extern, payloadMap);

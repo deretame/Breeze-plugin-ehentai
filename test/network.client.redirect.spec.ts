@@ -26,9 +26,9 @@ describe("redirect target resolution", () => {
   });
 
   test("test_resolveRedirectTarget_accepts_allowed_hosts", () => {
-    expect(
-      resolveRedirectTarget("https://exhentai.org/home.php", "https://exhentai.org/"),
-    ).toBe("https://exhentai.org/home.php");
+    expect(resolveRedirectTarget("https://exhentai.org/home.php", "https://exhentai.org/")).toBe(
+      "https://exhentai.org/home.php",
+    );
     expect(
       resolveRedirectTarget("https://s.exhentai.org/img/x.jpg", "https://exhentai.org/s/abc/1-1"),
     ).toBe("https://s.exhentai.org/img/x.jpg");
@@ -37,13 +37,13 @@ describe("redirect target resolution", () => {
   test("test_resolveRedirect_target_rejects_hosts_outside_allowlist", () => {
     // forums.e-hentai.org 由里站 igneous 探测流程自行处理（自带白名单），
     // 通用跟随器不放行，避免登录跳转把请求带出插件信任域。
-    expect(resolveRedirectTarget("https://forums.e-hentai.org/index.php", "https://exhentai.org/")).toBe(
-      "",
-    );
+    expect(
+      resolveRedirectTarget("https://forums.e-hentai.org/index.php", "https://exhentai.org/"),
+    ).toBe("");
     expect(resolveRedirectTarget("https://evil.example.com/", "https://e-hentai.org/")).toBe("");
-    expect(resolveRedirectTarget("https://not-e-hentai.org.evil.com/", "https://e-hentai.org/")).toBe(
-      "",
-    );
+    expect(
+      resolveRedirectTarget("https://not-e-hentai.org.evil.com/", "https://e-hentai.org/"),
+    ).toBe("");
   });
 
   test("test_resolveRedirect_target_rejects_empty_or_garbage", () => {

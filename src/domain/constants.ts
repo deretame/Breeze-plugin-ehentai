@@ -26,6 +26,7 @@ export const EH_PASS_HASH_CONFIG_KEY = "ipb_pass_hash";
 export const EH_IGNEOUS_CONFIG_KEY = "igneous";
 export const EH_DIRECT_CONNECT_CONFIG_KEY = "directConnect";
 export const EH_DIRECT_CUSTOM_IPS_CONFIG_KEY = "directCustomIps";
+export const EH_DIRECT_PROBE_CACHE_CONFIG_KEY = "directProbeCache";
 
 export const DEFAULT_TIMEOUT_MS = 12_000;
 export const MAX_RETRY_ATTEMPTS = 2;

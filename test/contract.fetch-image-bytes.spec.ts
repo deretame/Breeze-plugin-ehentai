@@ -80,7 +80,11 @@ describe("fetchImageBytes contract", () => {
 
     const defaultHeaders = { headers: { Cookie: "nw=1; datatags=1" } };
     expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1", defaultHeaders);
-    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined, defaultHeaders);
+    expect(getBytesSpy).toHaveBeenCalledWith(
+      "https://ehgt.org/full/1.jpg",
+      undefined,
+      defaultHeaders,
+    );
     expect(result).toEqual(bytes);
   });
 });

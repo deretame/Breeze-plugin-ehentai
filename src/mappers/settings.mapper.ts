@@ -1,7 +1,11 @@
 import type { SettingsBundleContract, SettingsField, SettingsSection } from "breeze-plugin-kit";
 import { DEFAULT_SETTINGS, PLUGIN_SOURCE } from "../domain/constants";
 import type { PluginSettings } from "../domain/types";
-import { describeFrontingStatus, hostSupportsFronting, resolveFrontHosts } from "../network/ip-direct";
+import {
+  describeFrontingStatus,
+  hostSupportsFronting,
+  resolveFrontHosts,
+} from "../network/ip-direct";
 
 const LEGACY_COOKIE_FIELDS: SettingsField[] = [
   {

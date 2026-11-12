@@ -3,6 +3,7 @@ import {
   DEFAULT_SETTINGS,
   EH_DIRECT_CONNECT_CONFIG_KEY,
   EH_DIRECT_CUSTOM_IPS_CONFIG_KEY,
+  EH_DIRECT_PROBE_CACHE_CONFIG_KEY,
   EH_FORUM_COOKIE_CONFIG_KEY,
   EH_IGNEOUS_CONFIG_KEY,
   EH_MEMBER_ID_CONFIG_KEY,
@@ -13,19 +14,20 @@ import type { PluginSettings } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
 import {
+  applyProbeCache,
   describeFrontingStatus,
   frontingAvailable,
+  hostSupportsFrontProbe,
   hostSupportsFronting,
+  isProbeCacheFresh,
+  optimizeFrontHosts,
   readHostFrontHosts,
   resolveFrontHosts,
   syncFrontHostsToHost,
+  type FrontProbeCache,
 } from "../network/ip-direct";
 import { asRecord, validateSettingsInput } from "../utils/guards";
-import {
-  compareVersions,
-  getAppVersionCached,
-  supportsFrontingVersion,
-} from "../utils/version";
+import { compareVersions, getAppVersionCached, supportsFrontingVersion } from "../utils/version";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
 const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set(["exhentai.org", "forums.e-hentai.org"]);
@@ -515,9 +517,7 @@ export async function readSettings(
     ipb_pass_hash: readExternString(externMap, EH_PASS_HASH_CONFIG_KEY) || storedPassHash,
     igneous: readExternString(externMap, EH_IGNEOUS_CONFIG_KEY) || storedIgneous,
     directConnect:
-      externMap.directConnect !== undefined
-        ? externMap.directConnect
-        : storedDirectConnect,
+      externMap.directConnect !== undefined ? externMap.directConnect : storedDirectConnect,
     directCustomIps:
       readExternString(externMap, EH_DIRECT_CUSTOM_IPS_CONFIG_KEY) || storedDirectCustomIps,
   };
@@ -555,23 +555,114 @@ export async function readSettings(
   };
 }
 
+// 优选缓存读一次就够：内容按 IP 交集匹配，用户改自定义 IP 时自动失效。
+let probeCacheMemo: FrontProbeCache | null | undefined;
+// 后台探测只跑一轮，避免每次 readSettings 都重复触发。
+let probeRefreshInFlight: Promise<void> | null = null;
+// 每次 applyDirectConnect 递增：探测期间用户改了设置/关了开关时，丢弃旧结果。
+let frontingGeneration = 0;
+let frontingEnabled = false;
+
+function parseProbeCache(raw: string): FrontProbeCache | null {
+  if (!raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(raw) as Partial<FrontProbeCache>;
+    if (
+      !parsed ||
+      typeof parsed.at !== "number" ||
+      !parsed.table ||
+      typeof parsed.table !== "object"
+    ) {
+      return null;
+    }
+    return { at: parsed.at, table: parsed.table as Record<string, string[]> };
+  } catch {
+    return null;
+  }
+}
+
+async function readProbeCache(): Promise<FrontProbeCache | null> {
+  if (probeCacheMemo !== undefined) {
+    return probeCacheMemo;
+  }
+  const raw = await loadConfigString(EH_DIRECT_PROBE_CACHE_CONFIG_KEY);
+  probeCacheMemo = parseProbeCache(raw);
+  return probeCacheMemo;
+}
+
+async function writeProbeCache(table: Record<string, string[]>): Promise<void> {
+  const cache: FrontProbeCache = { at: Date.now(), table };
+  probeCacheMemo = cache;
+  try {
+    await pluginConfig.save(EH_DIRECT_PROBE_CACHE_CONFIG_KEY, JSON.stringify(cache));
+  } catch {
+    // 缓存写失败只影响下次启动要不要重新探测，不影响本次生效。
+  }
+}
+
+/**
+ * 后台跑一轮 IP 连通性测试，完成后写回前置表并缓存。
+ *
+ * 刻意不 await：`readSettings` 在每次请求链路上都会调用，探测要十几秒，
+ * 阻塞会把搜索 / 详情卡死。先下发静态表保证可用，优选结果到了再热替换。
+ */
+function refreshProbeCacheInBackground(base: Record<string, string[]>, generation: number): void {
+  if (probeRefreshInFlight) {
+    return;
+  }
+  probeRefreshInFlight = (async () => {
+    try {
+      const optimized = await optimizeFrontHosts(base);
+      await writeProbeCache(optimized);
+      // 探测期间开关被关掉或设置变了：缓存照写，但不要覆盖当前生效的表。
+      if (frontingEnabled && generation === frontingGeneration) {
+        syncFrontHostsToHost(optimized);
+        console.log(`[EH] 前置 IP 连通性测试完成: ${describeFrontingStatus(optimized)}`);
+      }
+    } catch (error) {
+      console.warn("[EH] 前置 IP 连通性测试失败，继续使用静态表", error);
+    } finally {
+      probeRefreshInFlight = null;
+    }
+  })();
+}
+
 /**
  * 应用墙内 IP 直连配置。
  * - 宿主版本 <= 3.0.37、能力缺失或 directConnect=false 时下发空表（= 关闭前置）；
+ * - 有优选缓存时直接用缓存里的 IP 子集，没有/过期时先下发静态表、后台探测；
  * - 表内容无变化时不会重复调用宿主（幂等）。
  * 返回是否真正开启了前置（版本与能力都满足且开关打开）。
  */
 export async function applyDirectConnect(settings: PluginSettings): Promise<boolean> {
+  const generation = ++frontingGeneration;
   const available = await frontingAvailable();
-  const hosts =
-    available && settings.directConnect
-      ? resolveFrontHosts(settings.directCustomIps)
-      : {};
-  const result = syncFrontHostsToHost(hosts);
-  if (result.supported && result.changed) {
-    console.log(`[EH] 墙内直连已${Object.keys(hosts).length ? "启用" : "关闭"}: ${describeFrontingStatus(hosts)}`);
+  if (!available || !settings.directConnect) {
+    frontingEnabled = false;
+    const result = syncFrontHostsToHost({});
+    if (result.supported && result.changed) {
+      console.log("[EH] 墙内直连已关闭");
+    }
+    return false;
   }
-  return result.supported && Object.keys(hosts).length > 0;
+
+  const base = resolveFrontHosts(settings.directCustomIps);
+  const cache = await readProbeCache();
+  const initial = applyProbeCache(base, cache);
+  const result = syncFrontHostsToHost(initial);
+  if (result.supported && result.changed) {
+    console.log(`[EH] 墙内直连已启用: ${describeFrontingStatus(initial)}`);
+  }
+  frontingEnabled = true;
+
+  // 缓存缺失/过期时后台探测一次；宿主没有探测能力就跳过，只用静态表。
+  if (hostSupportsFrontProbe() && !isProbeCacheFresh(cache)) {
+    refreshProbeCacheInBackground(base, generation);
+  }
+
+  return result.supported && Object.keys(initial).length > 0;
 }
 
 /** 设置页 / 调试用：当前直连状态。 */

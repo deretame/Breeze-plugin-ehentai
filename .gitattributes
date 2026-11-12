@@ -1,0 +1,3 @@
+# 仓库统一使用 LF：构建脚本、格式化和 Node 工具都会写出 LF，
+# core.autocrlf=true 会把它们误判为已修改。显式 eol=lf 覆盖 autocrlf。
+* text=auto eol=lf

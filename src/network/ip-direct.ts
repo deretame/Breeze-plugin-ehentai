@@ -18,11 +18,22 @@
  * （rust/rquickjs_playground/src/web_runtime/http.rs）完成。
  */
 
+import {
+  getFrontHosts,
+  pickBestFrontIps,
+  probeFrontHosts as probeHostFrontHosts,
+  setFrontHosts,
+  type FrontHostTable,
+  type ProbeFrontHostsResult,
+} from "breeze-plugin-kit";
 import { getAppVersionCached, supportsFrontingVersion } from "../utils/version";
 
-/** 宿主提供的前置能力入口（由 Breeze 宿主注入的 QuickJS 全局函数）。 */
-const HOST_SET_FRONT_HOSTS = "__http_set_front_hosts";
-const HOST_GET_FRONT_HOSTS = "__http_get_front_hosts";
+/**
+ * 旧宿主只有内部函数、没有 `fronting` 对象时的能力探测入口。
+ * 实际操作统一走 kit 的封装，这里只用来判断「宿主到底支不支持」。
+ */
+const LEGACY_SET_FRONT_HOSTS = "__http_set_front_hosts";
+const LEGACY_PROBE_FRONT_HOSTS = "__http_probe_front_hosts";
 
 /**
  * 内置 IP 表。
@@ -129,7 +140,12 @@ export function parseFrontHostsInput(raw: unknown): Record<string, string[]> {
     if (separator <= 0) {
       continue;
     }
-    const host = line.slice(0, separator).trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/+$/, "");
+    const host = line
+      .slice(0, separator)
+      .trim()
+      .toLowerCase()
+      .replace(/^https?:\/\//, "")
+      .replace(/\/+$/, "");
     if (!host) {
       continue;
     }
@@ -159,10 +175,14 @@ export function resolveFrontHosts(customIps?: unknown): Record<string, string[]>
   return merged;
 }
 
-/** 宿主是否注入了前置能力（旧宿主没有这两个全局函数）。 */
+/** 宿主是否注入了前置能力（新宿主是 `fronting` 对象，旧宿主是内部函数）。 */
 export function hostSupportsFronting(): boolean {
   const scope = globalThis as Record<string, unknown>;
-  return typeof scope[HOST_SET_FRONT_HOSTS] === "function";
+  const api = scope.fronting as { setHosts?: unknown } | undefined;
+  if (api && typeof api.setHosts === "function") {
+    return true;
+  }
+  return typeof scope[LEGACY_SET_FRONT_HOSTS] === "function";
 }
 
 /**
@@ -174,24 +194,10 @@ export async function frontingAvailable(): Promise<boolean> {
   return supportsFrontingVersion(await getAppVersionCached()) && hostSupportsFronting();
 }
 
-function callHostFrontingApi(name: string, payload?: string): string | null {
-  const scope = globalThis as Record<string, unknown>;
-  const fn = scope[name];
-  if (typeof fn !== "function") {
-    return null;
-  }
-  try {
-    const output = (fn as (input?: string) => unknown)(payload);
-    return output === undefined || output === null ? "" : String(output);
-  } catch (error) {
-    console.warn(`[EH] host fronting api ${name} failed`, error);
-    return null;
-  }
-}
-
 /** 读取宿主当前生效的前置表（JSON 字符串），仅供设置页展示。 */
 export function readHostFrontHosts(): string | null {
-  return callHostFrontingApi(HOST_GET_FRONT_HOSTS);
+  const result = getFrontHosts();
+  return result.ok ? JSON.stringify(result) : null;
 }
 
 export type FrontingSyncResult =
@@ -204,9 +210,7 @@ let lastPushedJson = "";
  * 把前置表下发给宿主。幂等：表内容没变就不重复调用。
  * enabled=false 时下发空表 = 关闭前置。
  */
-export function syncFrontHostsToHost(
-  hosts: Record<string, string[]>,
-): FrontingSyncResult {
+export function syncFrontHostsToHost(hosts: Record<string, string[]>): FrontingSyncResult {
   if (!hostSupportsFronting()) {
     return { supported: false, changed: false, hosts };
   }
@@ -214,8 +218,8 @@ export function syncFrontHostsToHost(
   if (json === lastPushedJson) {
     return { supported: true, changed: false, hosts };
   }
-  const response = callHostFrontingApi(HOST_SET_FRONT_HOSTS, json);
-  if (response === null) {
+  const result = setFrontHosts(hosts as FrontHostTable);
+  if (!result.ok) {
     return { supported: false, changed: false, hosts };
   }
   lastPushedJson = json;
@@ -225,6 +229,151 @@ export function syncFrontHostsToHost(
 /** 重置幂等缓存（设置变更 / 测试用）。 */
 export function resetFrontingSyncCache(): void {
   lastPushedJson = "";
+}
+
+// ── 宿主 IP 连通性测试（优选）────────────────────────────────────────────
+
+/** 单次探测最多测多少个 IP（宿主上限 32）。 */
+const PROBE_MAX_IPS = 32;
+/** 每个域名保留几个最优 IP。 */
+export const FRONT_PROBE_KEEP_PER_HOST = 3;
+/** 允许的最大丢包率，超过就认为该 IP 不稳定。 */
+const PROBE_MAX_LOSS_RATE = 0.34;
+/** 单个 IP 的采样超时。 */
+const PROBE_TIMEOUT_MS = 2500;
+/** 优选结果缓存时长：过期后后台重新探测。 */
+export const FRONT_PROBE_CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** 优选结果缓存（持久化到 pluginConfig）。 */
+export type FrontProbeCache = {
+  at: number;
+  table: Record<string, string[]>;
+};
+
+/** 宿主是否提供前置 IP 探测能力。 */
+export function hostSupportsFrontProbe(): boolean {
+  const scope = globalThis as Record<string, unknown>;
+  const api = scope.fronting as { probe?: unknown } | undefined;
+  if (api && typeof api.probe === "function") {
+    return true;
+  }
+  return typeof scope[LEGACY_PROBE_FRONT_HOSTS] === "function";
+}
+
+/**
+ * 调宿主探测一个域名的候选 IP。
+ *
+ * 宿主发的是真实 `Host` 的 `HEAD` 请求（新连接、不读 body），所以「探测通过」
+ * 等价于「这个 IP 能用于前置」。宿主不支持或参数非法时返回 null。
+ */
+export async function probeFrontHosts(
+  host: string,
+  ips: readonly string[],
+): Promise<ProbeFrontHostsResult | null> {
+  if (!hostSupportsFrontProbe()) {
+    return null;
+  }
+  const candidates = ips.filter((ip) => isValidIpv4(ip)).slice(0, PROBE_MAX_IPS);
+  if (!candidates.length) {
+    return null;
+  }
+  try {
+    return await probeHostFrontHosts({
+      host,
+      ips: candidates,
+      timeoutMs: PROBE_TIMEOUT_MS,
+      concurrency: 4,
+      samples: 1,
+    });
+  } catch (error) {
+    console.warn(`[EH] 前置 IP 探测失败: ${host}`, error);
+    return null;
+  }
+}
+
+function defaultSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+export type OptimizeFrontHostsOptions = {
+  /** 测试用：替换等待实现。 */
+  sleep?: (ms: number) => Promise<void>;
+  /** 测试用：替换探测实现。 */
+  probe?: (host: string, ips: readonly string[]) => Promise<ProbeFrontHostsResult | null>;
+};
+
+/**
+ * 逐个域名探测并生成优选表。
+ *
+ * - 只有 1 个 IP 的域名跳过探测（没有选择空间，省配额）；
+ * - 命中 `probe-rate-limited` 时按 `retryAfterMs` 等一次再重试；
+ * - 某个域名全部失败时保留原表，宁可慢也不要下发空表。
+ */
+export async function optimizeFrontHosts(
+  table: Record<string, string[]>,
+  options: OptimizeFrontHostsOptions = {},
+): Promise<Record<string, string[]>> {
+  const sleep = options.sleep ?? defaultSleep;
+  const probe = options.probe ?? probeFrontHosts;
+  const result: Record<string, string[]> = {};
+
+  for (const [host, ips] of Object.entries(table)) {
+    if (ips.length < 2) {
+      result[host] = [...ips];
+      continue;
+    }
+    let report = await probe(host, ips);
+    if (report && report.ok === false && report.error === "probe-rate-limited") {
+      const waitMs = Math.min(Math.max(report.retryAfterMs ?? 5000, 1000), 10_000);
+      await sleep(waitMs);
+      report = await probe(host, ips);
+    }
+    const best = report
+      ? pickBestFrontIps(report, {
+          limit: FRONT_PROBE_KEEP_PER_HOST,
+          maxLossRate: PROBE_MAX_LOSS_RATE,
+        })
+      : [];
+    // 只挑出 1 个健康 IP 时保守一点：保留原表，别把可用性压到单点。
+    result[host] = best.length >= 2 ? best : [...ips];
+  }
+
+  return result;
+}
+
+/** 缓存是否还在有效期内。 */
+export function isProbeCacheFresh(cache: FrontProbeCache | null, now = Date.now()): boolean {
+  return Boolean(
+    cache &&
+    Number.isFinite(cache.at) &&
+    now - cache.at >= 0 &&
+    now - cache.at < FRONT_PROBE_CACHE_TTL_MS,
+  );
+}
+
+/**
+ * 把缓存里的优选结果套到当前表上。
+ *
+ * 只接受仍然存在于当前表里的 IP：用户改了「自定义 IP」后旧缓存自动失效，
+ * 不会被旧的优选结果覆盖。缓存过期或没有可用项时原样返回当前表。
+ */
+export function applyProbeCache(
+  table: Record<string, string[]>,
+  cache: FrontProbeCache | null,
+  now = Date.now(),
+): Record<string, string[]> {
+  if (!cache || !isProbeCacheFresh(cache, now)) {
+    return table;
+  }
+  const result: Record<string, string[]> = {};
+  for (const [host, ips] of Object.entries(table)) {
+    const cached = cache.table[host];
+    const usable = Array.isArray(cached) ? cached.filter((ip) => ips.includes(ip)) : [];
+    result[host] = usable.length ? usable : [...ips];
+  }
+  return result;
 }
 
 /** 设置页展示用的状态摘要。 */
