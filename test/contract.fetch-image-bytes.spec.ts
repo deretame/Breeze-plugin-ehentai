@@ -17,7 +17,9 @@ describe("fetchImageBytes contract", () => {
       timeoutMs: 3200,
     });
 
-    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200);
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200, {
+      headers: { Cookie: "nw=1; datatags=1" },
+    });
     expect(result).toEqual(bytes);
   });
 
@@ -31,7 +33,10 @@ describe("fetchImageBytes contract", () => {
       timeoutMs: 3200,
     });
 
-    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200);
+    // 域名归一化（main）与默认 cookie（PR）同时生效。
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200, {
+      headers: { Cookie: "nw=1; datatags=1" },
+    });
     expect(result).toEqual(bytes);
   });
 
@@ -73,8 +78,9 @@ describe("fetchImageBytes contract", () => {
       },
     });
 
-    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1");
-    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined);
+    const defaultHeaders = { headers: { Cookie: "nw=1; datatags=1" } };
+    expect(getTextSpy).toHaveBeenCalledWith("https://e-hentai.org/s/a1/123-1", defaultHeaders);
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/full/1.jpg", undefined, defaultHeaders);
     expect(result).toEqual(bytes);
   });
 });

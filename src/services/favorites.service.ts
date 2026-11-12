@@ -6,7 +6,7 @@ import { httpClient } from "../network/client";
 import { buildFavoritesEndpoint, buildSearchNavigationEndpoint } from "../network/endpoints";
 import { isFavoritesLoginPage, parseFavoritesPage } from "../parsers/favorites.parser";
 import { asRecord, normalizePage } from "../utils/guards";
-import { buildRequestConfig } from "./settings.service";
+import { buildRequestConfig, hasAuthCookie } from "./settings.service";
 
 export type FavoritesPayload = {
   page?: number;
@@ -36,7 +36,10 @@ export async function getFavoritesService(
   const nextUrlFromExtern = String(extern.nextUrl ?? "").trim();
 
   const requestConfig = buildRequestConfig(settings);
-  if (!requestConfig) {
+  // 收藏页必须带登录态。注意 `buildRequestConfig` 现在总会返回配置
+  // （默认 cookie nw=1 / datatags=1 恒在），所以「未登录」的判定要看
+  // 真正的登录 cookie，而不是看 requestConfig 是否为空。
+  if (!hasAuthCookie(settings)) {
     throw await authRequiredError("请先登录后再查看收藏");
   }
 

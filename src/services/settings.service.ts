@@ -1,6 +1,8 @@
 import { flutterTools, pluginConfig, SettingsBundleContract } from "breeze-plugin-kit";
 import {
   DEFAULT_SETTINGS,
+  EH_DIRECT_CONNECT_CONFIG_KEY,
+  EH_DIRECT_CUSTOM_IPS_CONFIG_KEY,
   EH_FORUM_COOKIE_CONFIG_KEY,
   EH_IGNEOUS_CONFIG_KEY,
   EH_MEMBER_ID_CONFIG_KEY,
@@ -10,6 +12,13 @@ import {
 import type { PluginSettings } from "../domain/types";
 import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
+import {
+  describeFrontingStatus,
+  hostSupportsFronting,
+  readHostFrontHosts,
+  resolveFrontHosts,
+  syncFrontHostsToHost,
+} from "../network/ip-direct";
 import { asRecord, validateSettingsInput } from "../utils/guards";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
@@ -193,10 +202,14 @@ async function tryResolveExhentaiIgneous(rawCookie: string): Promise<string> {
     return currentCookie;
   }
 
+  // 里站的 igneous 探测链要带上 JHenTai 的默认 cookie（`nw=1` / `datatags=1`），
+  // 否则服务端返回的跳转形态与预期不同。
+  const defaultCookie = DEFAULT_EH_COOKIE_PAIRS.join("; ");
+
   let currentUrl = EX_BASE_URL;
   for (let step = 0; step < EX_AUTH_REDIRECT_MAX_STEPS; step += 1) {
     const response = await httpClient.getTextWithMeta(currentUrl, {
-      headers: { Cookie: currentCookie },
+      headers: { Cookie: `${defaultCookie}; ${currentCookie}` },
     });
 
     const setCookiePairs = readSetCookiePairs(response.headers);
@@ -310,12 +323,60 @@ export function sanitizeForumCookie(rawCookie: unknown): string {
     .join("; ");
 }
 
+/**
+ * JHenTai 无条件注入的两个默认 cookie（`eh_cookie_manager.dart`）：
+ * - `nw=1`：标记「无宽度的窄版页面」，影响页面 HTML 的排版；
+ * - `datatags=1`：**关键**——只有带上它，详情页缩略图节点才会输出
+ *   `data-orghash`（原图 hash）。JHenTai 用它把 MPV 链接改写成
+ *   `/s/{orghash前10位}/{gid}-{pageNo}` 的图片页链接（`GalleryThumbnail.replacedMPVHref`）。
+ *   没有它，MPV 链接就无法改写，图片页解析会退化。
+ */
+const DEFAULT_EH_COOKIE_PAIRS = ["nw=1", "datatags=1"] as const;
+
+/**
+ * 构造请求头。
+ *
+ * 始终带上 JHenTai 的默认 cookie；用户填的论坛 cookie（`ipb_member_id` /
+ * `ipb_pass_hash` / `igneous`）叠加在后面。同名项以用户值为准。
+ */
 export function buildRequestHeaders(settings: PluginSettings): Record<string, string> {
   const cookie = sanitizeForumCookie(settings.forumCookie);
-  if (!cookie) {
+  const pairs = new Map<string, string>();
+  for (const pair of DEFAULT_EH_COOKIE_PAIRS) {
+    const [name, ...rest] = pair.split("=");
+    pairs.set(name, rest.join("="));
+  }
+  for (const token of cookie.split(";")) {
+    const parsed = splitCookiePair(token.trim());
+    if (!parsed) {
+      continue;
+    }
+    pairs.set(parsed.name, parsed.value);
+  }
+  const merged = Array.from(pairs.entries())
+    .map(([name, value]) => `${name}=${value}`)
+    .join("; ");
+  if (!merged) {
     return {};
   }
-  return { Cookie: cookie };
+  return { Cookie: merged };
+}
+
+/**
+ * 判断当前设置里是否带真正的登录 cookie。
+ *
+ * 注意：`buildRequestHeaders` 现在恒会带上 `nw=1` / `datatags=1` 两个默认
+ * cookie（JHenTai 同款），所以「是否登录」不能靠 `requestConfig` 是否为空判断，
+ * 必须看有没有 `ipb_member_id` / `ipb_pass_hash` 这类真正的凭据。
+ */
+export function hasAuthCookie(settings: PluginSettings): boolean {
+  const cookie = sanitizeForumCookie(settings.forumCookie);
+  if (!cookie) {
+    return false;
+  }
+  const hasMemberId = Boolean(findCookieValue(cookie, "ipb_member_id").trim());
+  const hasPassHash = Boolean(findCookieValue(cookie, "ipb_pass_hash").trim());
+  return hasMemberId || hasPassHash;
 }
 
 export function buildRequestConfig(
@@ -420,14 +481,23 @@ export async function readSettings(
   options?: { skipExProbe?: boolean },
 ): Promise<PluginSettings> {
   const externMap = asRecord(extern);
-  const [storedSite, storedImageProxyEnabled, storedMemberId, storedPassHash, storedIgneous] =
-    await Promise.all([
-      loadConfigString("site", DEFAULT_SETTINGS.site),
-      loadConfigString("imageProxyEnabled", String(DEFAULT_SETTINGS.imageProxyEnabled)),
-      loadConfigString(EH_MEMBER_ID_CONFIG_KEY, DEFAULT_SETTINGS.ipb_member_id),
-      loadConfigString(EH_PASS_HASH_CONFIG_KEY, DEFAULT_SETTINGS.ipb_pass_hash),
-      loadConfigString(EH_IGNEOUS_CONFIG_KEY, DEFAULT_SETTINGS.igneous),
-    ]);
+  const [
+    storedSite,
+    storedImageProxyEnabled,
+    storedMemberId,
+    storedPassHash,
+    storedIgneous,
+    storedDirectConnect,
+    storedDirectCustomIps,
+  ] = await Promise.all([
+    loadConfigString("site", DEFAULT_SETTINGS.site),
+    loadConfigString("imageProxyEnabled", String(DEFAULT_SETTINGS.imageProxyEnabled)),
+    loadConfigString(EH_MEMBER_ID_CONFIG_KEY, DEFAULT_SETTINGS.ipb_member_id),
+    loadConfigString(EH_PASS_HASH_CONFIG_KEY, DEFAULT_SETTINGS.ipb_pass_hash),
+    loadConfigString(EH_IGNEOUS_CONFIG_KEY, DEFAULT_SETTINGS.igneous),
+    loadConfigString(EH_DIRECT_CONNECT_CONFIG_KEY, String(DEFAULT_SETTINGS.directConnect)),
+    loadConfigString(EH_DIRECT_CUSTOM_IPS_CONFIG_KEY, DEFAULT_SETTINGS.directCustomIps),
+  ]);
 
   const merged = {
     site: readExternString(externMap, "site") || storedSite,
@@ -438,6 +508,12 @@ export async function readSettings(
     ipb_member_id: readExternString(externMap, EH_MEMBER_ID_CONFIG_KEY) || storedMemberId,
     ipb_pass_hash: readExternString(externMap, EH_PASS_HASH_CONFIG_KEY) || storedPassHash,
     igneous: readExternString(externMap, EH_IGNEOUS_CONFIG_KEY) || storedIgneous,
+    directConnect:
+      externMap.directConnect !== undefined
+        ? externMap.directConnect
+        : storedDirectConnect,
+    directCustomIps:
+      readExternString(externMap, EH_DIRECT_CUSTOM_IPS_CONFIG_KEY) || storedDirectCustomIps,
   };
 
   // Backward compatibility: legacy extern aggregate cookie overrides parts.
@@ -455,6 +531,9 @@ export async function readSettings(
   let settings = validateSettingsInput(merged);
   settings = { ...settings, forumCookie: buildForumCookie(settings) };
 
+  // 墙内直连：把 host->IP 表下发给宿主（旧宿主无此能力时静默跳过）。
+  applyDirectConnect(settings);
+
   if (!options?.skipExProbe) {
     settings = await maybeRefreshExhentaiCookie(settings);
     settings = { ...settings, forumCookie: buildForumCookie(settings) };
@@ -464,6 +543,37 @@ export async function readSettings(
   return {
     ...settings,
     forumCookie: buildForumCookie(settings),
+  };
+}
+
+/**
+ * 应用墙内 IP 直连配置。
+ * - directConnect=false 或宿主不支持时下发空表（= 关闭前置）；
+ * - 表内容无变化时不会重复调用宿主（幂等）。
+ * 返回是否真正开启了前置（宿主支持且开关打开）。
+ */
+export function applyDirectConnect(settings: PluginSettings): boolean {
+  const hosts = settings.directConnect
+    ? resolveFrontHosts(settings.directCustomIps)
+    : {};
+  const result = syncFrontHostsToHost(hosts);
+  if (result.supported && result.changed) {
+    console.log(`[EH] 墙内直连已${Object.keys(hosts).length ? "启用" : "关闭"}: ${describeFrontingStatus(hosts)}`);
+  }
+  return result.supported && Object.keys(hosts).length > 0;
+}
+
+/** 设置页 / 调试用：当前直连状态。 */
+export function readDirectConnectStatus(): {
+  hostSupported: boolean;
+  summary: string;
+  hostFrontHosts: string | null;
+} {
+  const supported = hostSupportsFronting();
+  return {
+    hostSupported: supported,
+    summary: supported ? describeFrontingStatus(resolveFrontHosts()) : "宿主不支持（需新版 Breeze）",
+    hostFrontHosts: readHostFrontHosts(),
   };
 }
 

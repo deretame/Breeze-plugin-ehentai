@@ -10,7 +10,7 @@ import { buildFavoritePopupEndpoint, buildFavoritesEndpoint } from "../network/e
 import { httpClient } from "../network/client";
 import { isFavoritesLoginPage, parseFavoriteFoldersPage } from "../parsers/favorites.parser";
 import { asRecord, normalizeComicId } from "../utils/guards";
-import { buildRequestConfig } from "./settings.service";
+import { buildRequestConfig, hasAuthCookie } from "./settings.service";
 
 const FAVORITE_CATEGORY_COUNT = 10;
 const FAVORITE_CONTINUATION_PREFIX = "ehentai-favorite:v1:";
@@ -138,7 +138,8 @@ async function listFavoriteFoldersService(
   settings: PluginSettings,
 ): Promise<FavoriteFoldersResult> {
   const requestConfig = buildRequestConfig(settings);
-  if (!requestConfig) {
+  // 「未登录」判定看真正的登录 cookie（buildRequestConfig 恒有默认 cookie）。
+  if (!hasAuthCookie(settings)) {
     throw await authRequiredError("请先登录后再查看收藏分类");
   }
 
@@ -159,7 +160,8 @@ async function applyFavorite(
   options: { existing: boolean; note?: string } = { existing: false },
 ): Promise<void> {
   const requestConfig = buildRequestConfig(settings);
-  if (!requestConfig) {
+  // 「未登录」判定看真正的登录 cookie（buildRequestConfig 恒有默认 cookie）。
+  if (!hasAuthCookie(settings)) {
     throw await authRequiredError("请先登录后再收藏");
   }
 

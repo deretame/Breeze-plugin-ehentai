@@ -192,7 +192,12 @@ describe("chapter contract", () => {
       chunkSize: 200,
       totalPageCount: 4,
     });
-    expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
+    expect(getTextSpy).toHaveBeenCalledWith(
+      expect.stringContaining("p=1"),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Cookie: expect.stringContaining("datatags=1") }),
+      }),
+    );
   });
 
   test("test_getChapter_with_chunk_extern_only_returns_requested_chunk_docs", async () => {
@@ -228,7 +233,12 @@ describe("chapter contract", () => {
     expect(result.data.chapter.order).toBe(2);
     expect(result.data.chapter.pages).toHaveLength(2);
     expect(result.data.chapter.pages.map((doc) => doc.id)).toEqual(["3", "4"]);
-    expect(getTextSpy).toHaveBeenCalledWith(expect.stringContaining("p=1"));
+    expect(getTextSpy).toHaveBeenCalledWith(
+      expect.stringContaining("p=1"),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Cookie: expect.stringContaining("datatags=1") }),
+      }),
+    );
   });
 
   test("test_getChapter_second_request_hits_cache_and_skips_network", async () => {
