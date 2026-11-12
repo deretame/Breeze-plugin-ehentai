@@ -10,13 +10,15 @@
  *
  * 本模块只负责：
  * 1. 维护 host -> IP 表（内置实测表 + 用户覆盖）；
- * 2. 探测宿主是否提供前置能力（`__http_set_front_hosts`）；
+ * 2. 确认宿主版本（> 3.0.37）与前置能力都可用；
  * 3. 把合并后的表下发给宿主（幂等，无变化不重复下发）；
  * 4. 提供状态查询，供设置页展示。
  *
  * 实际的 IP 轮询、不健康剔除、URL 改写、Host 头注入、强制 h1 都在宿主
  * （rust/rquickjs_playground/src/web_runtime/http.rs）完成。
  */
+
+import { getAppVersionCached, supportsFrontingVersion } from "../utils/version";
 
 /** 宿主提供的前置能力入口（由 Breeze 宿主注入的 QuickJS 全局函数）。 */
 const HOST_SET_FRONT_HOSTS = "__http_set_front_hosts";
@@ -161,6 +163,15 @@ export function resolveFrontHosts(customIps?: unknown): Record<string, string[]>
 export function hostSupportsFronting(): boolean {
   const scope = globalThis as Record<string, unknown>;
   return typeof scope[HOST_SET_FRONT_HOSTS] === "function";
+}
+
+/**
+ * 宿主版本与能力都满足时才可用。
+ *
+ * 3.0.37 及更早版本没有前置能力：设置页隐藏整个分区，也不下发前置表。
+ */
+export async function frontingAvailable(): Promise<boolean> {
+  return supportsFrontingVersion(await getAppVersionCached()) && hostSupportsFronting();
 }
 
 function callHostFrontingApi(name: string, payload?: string): string | null {

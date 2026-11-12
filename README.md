@@ -1,18 +1,19 @@
-# Breeze-plugin-ehentai（里站直连版）· v0.3.5
+# Breeze-plugin-ehentai（里站直连版）· v0.3.6
 
 > `https://github.com/deretame/Breeze-plugin-ehentai` 的墙内直连改造版。
 > 目标：达到 `JHenTai` 的「里站（exhentai.org）直连」效果。
 
 ## 相对官方 v0.1.1 的改动
 
-| # | 改动 | 需要宿主补丁 | 说明 |
+| # | 改动 | 宿主版本要求 | 说明 |
 | --- | --- | --- | --- |
-| 1 | **默认注入 `nw=1` / `datatags=1`** | ❌ | 与 JHenTai 对齐。`datatags=1` 决定页面是否输出 `data-orghash`，而 **MPV → `/s/` 链接改写依赖它**——修好「MPV 链接解析不了导致图片不出」 |
-| 2 | 墙内 IP 直连（域名前置） | ✅ | 连真实 IP + 不发 SNI + `Host` 头 + 强制 HTTP/1.1，绕过墙内 SNI RST |
-| 3 | 手动跟随重定向 | ❌ | 里站大量使用 302 跳 `remoteapi.php`，逐跳手动跟（上限 5 跳），只跟随白名单内的 https 目标 |
-| 4 | 「网络」设置分区 | ❌ | 开关 + 自定义 IP 覆盖位 + **实时状态显示在开关 label 上** |
+| 1 | **默认注入 `nw=1` / `datatags=1`** | 无 | 与 JHenTai 对齐。`datatags=1` 决定页面是否输出 `data-orghash`，而 **MPV → `/s/` 链接改写依赖它**——修好「MPV 链接解析不了导致图片不出」 |
+| 2 | 墙内 IP 直连（域名前置） | **Breeze > 3.0.37** | 连真实 IP + 不发 SNI + `Host` 头 + 强制 HTTP/1.1，绕过墙内 SNI RST |
+| 3 | 手动跟随重定向 | 无 | 里站大量使用 302 跳 `remoteapi.php`，逐跳手动跟（上限 5 跳），只跟随白名单内的 https 目标 |
+| 4 | 「网络」设置分区 | **Breeze > 3.0.37** | 开关 + 自定义 IP 覆盖位 + **实时状态显示在开关 label 上** |
 
-改动 1、3、4 **不需要宿主补丁**即可生效；只有改动 2 需要。
+改动 1、3 在任何版本都生效；改动 2、4 只在 **Breeze 高于 3.0.37** 时显示并使用，
+低于或等于 3.0.37 时整个「网络」分区隐藏、也不会下发前置表（行为与官方版一致）。
 
 ---
 
@@ -95,24 +96,28 @@ return '$prefix/s/${originImageHash!.substring(0, 10)}/$gid-$pageNo';
 | --- | --- | --- |
 | 基础 | 站点（表站 EH / 里站 EX） | 原有 |
 | 基础 | `ipb_member_id` / `ipb_pass_hash` / `igneous` | 原有，cookie 登录 |
-| **网络** | **墙内 IP 直连（SNI 绕过）** | 开关，**默认关**（需宿主开启 `host-fronting` feature 才生效） |
+| **网络** | **墙内 IP 直连（SNI 绕过）** | 开关，**默认关**（仅 Breeze > 3.0.37 显示；更低版本整个分区隐藏） |
 | 网络 | 自定义 IP | 覆盖内置表用，**默认空 = 用内置表** |
 
 开关 label 会**实时显示状态**，不用猜：
 
 | label | 含义 |
 | --- | --- |
-| `墙内 IP 直连（SNI 绕过） · 生效：7 个域名 / 29 个 IP` | 宿主持已支持，直连生效 ✅ |
-| `墙内 IP 直连（SNI 绕过） · 宿主不支持，需新版 Breeze` | 宿主持没打补丁，直连没生效 ⚠️ |
+| `墙内 IP 直连（SNI 绕过） · 生效：7 个域名 / 29 个 IP` | 宿主已支持，直连生效 ✅ |
+| `墙内 IP 直连（SNI 绕过） · 宿主不支持，需新版 Breeze` | 版本够但宿主没注入前置能力（自编译关掉了 feature），直连没生效 ⚠️ |
 | `墙内 IP 直连（SNI 绕过） · 已关闭` | 开关被手动关掉 |
 
 **「宿主不支持」时填自定义 IP 也没用**——IP 表的消费者在宿主里。
 
 ### 宿主侧要求
 
-必须给 Breeze 宿主打 5 个 Rust 补丁（`deliver/Breeze-host-fronting/patches/`），
-因为 reqwest 默认协商 HTTP/2，而 h2 下 `:authority` 取自 URI（会是 IP），
-Cloudflare 直接回 403。JS 侧无法强制 HTTP/1.1。
+宿主能力已合入 Breeze 主线（`rust/rquickjs_playground` 的 `host-fronting` feature，
+默认编入产物），**Breeze > 3.0.37 开箱可用，不需要打补丁**。
+
+之所以必须由宿主实现：reqwest 默认协商 HTTP/2，而 h2 下 `:authority` 取自 URI
+（会是 IP），Cloudflare 直接回 403。JS 侧无法强制 HTTP/1.1。
+
+插件侧按宿主版本做门控：`getAppVersion()` 不高于 `3.0.37` 时直接隐藏该功能。
 
 ---
 

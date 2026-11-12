@@ -14,12 +14,18 @@ import { mapSettingsBundle } from "../mappers/settings.mapper";
 import { httpClient, type HttpTextResponseMeta } from "../network/client";
 import {
   describeFrontingStatus,
+  frontingAvailable,
   hostSupportsFronting,
   readHostFrontHosts,
   resolveFrontHosts,
   syncFrontHostsToHost,
 } from "../network/ip-direct";
 import { asRecord, validateSettingsInput } from "../utils/guards";
+import {
+  compareVersions,
+  getAppVersionCached,
+  supportsFrontingVersion,
+} from "../utils/version";
 
 const COOKIE_NAME_BLACKLIST = new Set(["cf_clearance"]);
 const EX_AUTH_REDIRECT_ALLOWED_HOSTS = new Set(["exhentai.org", "forums.e-hentai.org"]);
@@ -531,8 +537,11 @@ export async function readSettings(
   let settings = validateSettingsInput(merged);
   settings = { ...settings, forumCookie: buildForumCookie(settings) };
 
-  // 墙内直连：把 host->IP 表下发给宿主（旧宿主无此能力时静默跳过）。
-  applyDirectConnect(settings);
+  // 墙内直连：宿主版本 > 3.0.37 且具备前置能力时才下发 host->IP 表。
+  const directEnabled = await applyDirectConnect(settings);
+  if (!directEnabled) {
+    settings = { ...settings, directConnect: false };
+  }
 
   if (!options?.skipExProbe) {
     settings = await maybeRefreshExhentaiCookie(settings);
@@ -548,14 +557,16 @@ export async function readSettings(
 
 /**
  * 应用墙内 IP 直连配置。
- * - directConnect=false 或宿主不支持时下发空表（= 关闭前置）；
+ * - 宿主版本 <= 3.0.37、能力缺失或 directConnect=false 时下发空表（= 关闭前置）；
  * - 表内容无变化时不会重复调用宿主（幂等）。
- * 返回是否真正开启了前置（宿主支持且开关打开）。
+ * 返回是否真正开启了前置（版本与能力都满足且开关打开）。
  */
-export function applyDirectConnect(settings: PluginSettings): boolean {
-  const hosts = settings.directConnect
-    ? resolveFrontHosts(settings.directCustomIps)
-    : {};
+export async function applyDirectConnect(settings: PluginSettings): Promise<boolean> {
+  const available = await frontingAvailable();
+  const hosts =
+    available && settings.directConnect
+      ? resolveFrontHosts(settings.directCustomIps)
+      : {};
   const result = syncFrontHostsToHost(hosts);
   if (result.supported && result.changed) {
     console.log(`[EH] 墙内直连已${Object.keys(hosts).length ? "启用" : "关闭"}: ${describeFrontingStatus(hosts)}`);
@@ -564,49 +575,28 @@ export function applyDirectConnect(settings: PluginSettings): boolean {
 }
 
 /** 设置页 / 调试用：当前直连状态。 */
-export function readDirectConnectStatus(): {
+export async function readDirectConnectStatus(): Promise<{
   hostSupported: boolean;
   summary: string;
   hostFrontHosts: string | null;
-} {
-  const supported = hostSupportsFronting();
+}> {
+  const supported = await frontingAvailable();
   return {
     hostSupported: supported,
-    summary: supported ? describeFrontingStatus(resolveFrontHosts()) : "宿主不支持（需新版 Breeze）",
+    summary: supported
+      ? describeFrontingStatus(resolveFrontHosts())
+      : "宿主版本过低或不支持（需 Breeze > 3.0.37）",
     hostFrontHosts: readHostFrontHosts(),
   };
-}
-
-/**
- * 旧宿主（< 3.0.34，不懂 getLoginBundle）才显示 settings cookie 字段。
- * 三段比较：4.0.0 > 3.0.34，缺段按 0 补齐。
- */
-function compareVersions(a: string, b: string): number {
-  // dart.getAppVersion 返回 JSON 编码串（首尾带引号），先剥掉。
-  const clean = (v: string) =>
-    String(v ?? "")
-      .trim()
-      .replace(/^"+|"+$/g, "");
-  const pa = clean(a)
-    .split(".")
-    .map((x) => Number(x) || 0);
-  const pb = clean(b)
-    .split(".")
-    .map((x) => Number(x) || 0);
-  const len = Math.max(pa.length, pb.length);
-  for (let i = 0; i < len; i += 1) {
-    const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
-    if (diff !== 0) return diff;
-  }
-  return 0;
 }
 
 export async function getSettingsBundleService(
   extern?: Record<string, unknown>,
 ): Promise<SettingsBundleContract> {
   const values = await readSettings(extern, { skipExProbe: true });
-  const version = await flutterTools.getAppVersion();
+  const version = await getAppVersionCached();
   return mapSettingsBundle(values, {
     legacyHost: compareVersions(version, "3.0.34") < 0,
+    fronting: supportsFrontingVersion(version) && hostSupportsFronting(),
   });
 }

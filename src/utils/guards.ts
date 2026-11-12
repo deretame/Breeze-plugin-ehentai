@@ -104,8 +104,8 @@ export function validateSettingsInput(input: Record<string, unknown>): PluginSet
   const ipb_pass_hash = String(input.ipb_pass_hash ?? "").trim();
   const igneous = String(input.igneous ?? "").trim();
 
-  // 默认关闭：宿主若未开启 `host-fronting` feature，这里即使为 true 也只是普通请求，
-  // 语义上就不该默认把「可能不可用」的功能打开，统一按 DEFAULT_SETTINGS 的 false 处理。
+  // 默认关闭：只有宿主版本 > 3.0.37 时才提供前置能力，这里即使为 true，
+  // 旧宿主上也只会走普通请求；语义上不该默认打开，统一按 DEFAULT_SETTINGS 的 false 处理。
   const directConnect =
     typeof input.directConnect === "boolean"
       ? input.directConnect

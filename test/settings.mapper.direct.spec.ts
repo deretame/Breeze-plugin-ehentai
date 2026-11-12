@@ -23,7 +23,7 @@ describe("settings mapper · 墙内直连 label", () => {
     setHostSupported(false);
     const label = directConnectLabel({ ...DEFAULT_SETTINGS });
     expect(label).toContain("SNI 绕过");
-    expect(label).toContain("宿主持不支持");
+    expect(label).toContain("宿主不支持");
     expect(label).toContain("需新版 Breeze");
   });
 
@@ -73,21 +73,33 @@ describe("settings mapper · 墙内直连 label", () => {
 
   test("test_mapSettingsBundle_carries_live_label_into_direct_section", () => {
     setHostSupported(false);
-    const bundle = mapSettingsBundle({ ...DEFAULT_SETTINGS });
+    const bundle = mapSettingsBundle({ ...DEFAULT_SETTINGS }, { fronting: true });
     const section = bundle.scheme.sections.find((item) => item.id === "direct");
     expect(section).toBeDefined();
     const switchField = section?.fields.find((field) => field.key === "directConnect");
     expect(switchField?.kind).toBe("switch");
-    expect(switchField?.label).toContain("宿主持不支持");
+    expect(switchField?.label).toContain("宿主不支持");
     // 开关的值必须是布尔值：宿主用 Dart 严格比较 `value == true` 渲染 switch
     // （plugin_scheme_widgets.dart:130），下发字符串会让开关永远显示为关。
-    // 默认关闭：DEFAULT_SETTINGS.directConnect === false（需宿主开启 host-fronting feature）。
     expect(bundle.data.values.directConnect).toBe(false);
+  });
+
+  test("test_mapSettingsBundle_hides_direct_section_on_old_host", () => {
+    // 宿主版本 <= 3.0.37：整个「网络」分区隐藏，开关值强制为关。
+    const bundle = mapSettingsBundle({ ...DEFAULT_SETTINGS, directConnect: true });
+    const section = bundle.scheme.sections.find((item) => item.id === "direct");
+    expect(section).toBeUndefined();
+    expect(bundle.data.values.directConnect).toBe(false);
+    // 自定义 IP 仍然保留，升级宿主后不用重新填。
+    expect(bundle.data.values.directCustomIps).toBe(DEFAULT_SETTINGS.directCustomIps);
   });
 
   test("test_directConnect_value_is_real_boolean_not_string", () => {
     for (const flag of [true, false]) {
-      const bundle = mapSettingsBundle({ ...DEFAULT_SETTINGS, directConnect: flag });
+      const bundle = mapSettingsBundle(
+        { ...DEFAULT_SETTINGS, directConnect: flag },
+        { fronting: true },
+      );
       expect(bundle.data.values.directConnect).toBe(flag);
       expect(typeof bundle.data.values.directConnect).toBe("boolean");
     }

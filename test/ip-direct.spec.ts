@@ -2,6 +2,7 @@ import { describe, expect, test } from "@rstest/core";
 import {
   DEFAULT_FRONT_HOSTS,
   describeFrontingStatus,
+  frontingAvailable,
   hostSupportsFronting,
   isValidIpv4,
   parseFrontHostsInput,
@@ -104,6 +105,12 @@ describe("host bridge capability", () => {
   test("test_hostSupportsFronting_false_without_host_globals", () => {
     resetFrontingSyncCache();
     expect(hostSupportsFronting()).toBe(false);
+  });
+
+  test("test_frontingAvailable_false_without_host_version", async () => {
+    // 纯 Node 环境拿不到宿主版本（也没有前置能力）：整体不可用。
+    resetFrontingSyncCache();
+    expect(await frontingAvailable()).toBe(false);
   });
 
   test("test_syncFrontHostsToHost_noop_when_unsupported", () => {

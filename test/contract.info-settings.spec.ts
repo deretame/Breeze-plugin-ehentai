@@ -13,7 +13,7 @@ describe("info and settings contract", () => {
       "latest",
       "popular",
       "ranking",
-      "favorites",
+      "cloudFavorite",
     ]);
   });
 
