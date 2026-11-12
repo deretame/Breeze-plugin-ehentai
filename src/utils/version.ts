@@ -50,11 +50,16 @@ export async function getAppVersionCached(): Promise<string> {
     return cachedAppVersion;
   }
   try {
-    cachedAppVersion = normalizeAppVersion(await flutterTools.getAppVersion());
+    const version = normalizeAppVersion(await flutterTools.getAppVersion());
+    // 只缓存看起来像版本号的返回值：init 早期 bridge 没就绪 / PackageInfo 失败时
+    // 不要把它永久钉成「不支持」，下次调用还能重新读。
+    if (/^\d/.test(version)) {
+      cachedAppVersion = version;
+    }
+    return version;
   } catch {
-    cachedAppVersion = "";
+    return "";
   }
-  return cachedAppVersion;
 }
 
 /** 测试用：重置版本缓存。 */
