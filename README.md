@@ -155,6 +155,25 @@ pnpm test
 pnpm build
 ```
 
+### 实测域名前置（App 运行时）
+
+App 跑起来后，另开一个 PowerShell 窗口：
+
+```powershell
+# 一直观察，翻页 / 搜索 / 阅读时看有没有命中前置 IP
+powershell -ExecutionPolicy Bypass -File scripts/test-fronting.ps1
+
+# 只采样一次（退出码 0 = 命中前置，1 = 没命中，2 = App 没运行）
+powershell -ExecutionPolicy Bypass -File scripts/test-fronting.ps1 -Once
+
+# 观察 60 秒后自动汇总
+powershell -ExecutionPolicy Bypass -File scripts/test-fronting.ps1 -DurationSeconds 60
+```
+
+脚本会读 App 的 `FileVersion` 判断门控是否应该开启（> `3.0.37`），
+再把 `zephyr.exe` 的 443 连接对端 IP 与内置前置表比对，输出「前置 / 代理 / 普通」分类。
+表与 `src/network/ip-direct.ts` 同步；上游 IP 变了可以用 `-FrontHostsFile` 传一份 JSON 覆盖。
+
 ### 受限环境（禁止子进程 spawn）下的构建
 
 本仓库的 `build/console-location-loader.cjs` 用 `require('tsx/cjs')` 加载 `.ts`，
