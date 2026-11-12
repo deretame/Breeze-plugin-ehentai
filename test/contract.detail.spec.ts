@@ -110,9 +110,8 @@ describe("detail contract", () => {
     rs.spyOn(httpClient, "getText").mockResolvedValueOnce(styledHtml);
 
     const result = await getComicDetail({ comicId: "123456/abcdef" });
-    expect(result.data.normal.comicInfo.cover.url).toBe(
-      "https://s.exhentai.org/t/detail-cover.jpg",
-    );
+    // 里站图片域名统一改写到 ehgt.org（同路径同文件，墙内可达）。
+    expect(result.data.normal.comicInfo.cover.url).toBe("https://ehgt.org/t/detail-cover.jpg");
     expect(result.data.normal.comicInfo.cover.path).toBe("123456_abcdef.jpg");
   });
 

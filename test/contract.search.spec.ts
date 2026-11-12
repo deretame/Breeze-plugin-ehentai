@@ -91,6 +91,26 @@ describe("search contract", () => {
     expect(result.data.items[1].cover.path).toBe("3875918-7cb5fa32d0.webp");
   });
 
+  test("test_searchComic_ex_image_host_cover_is_rewritten_to_ehgt", async () => {
+    // 里站列表页封面走 https://s.exhentai.org/t/...，墙内不可达，需改写到 ehgt.org。
+    rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
+      <table class="itg gltc">
+        <tbody>
+          <tr>
+            <td class="gl2c"><img src="https://s.exhentai.org/t/aa/bb/cc.jpg" /></td>
+            <td class="gl3c glname">
+              <a href="https://exhentai.org/g/3881537/23cc1145f4/"><div class="glink">Ex Only</div></a>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    `);
+
+    const result = await searchComic({ keyword: "test", extern: { site: "EX" } });
+    expect(result.data.items[0].cover.url).toBe("https://ehgt.org/t/aa/bb/cc.jpg");
+    expect(result.data.items[0].cover.path).toBe("3881537-23cc1145f4.jpg");
+  });
+
   test("test_searchComic_searchnav_dnext_anchor_marks_has_more", async () => {
     rs.spyOn(httpClient, "getText").mockResolvedValueOnce(`
       <div class="searchnav">

@@ -13,11 +13,25 @@ describe("fetchImageBytes contract", () => {
     const getBytesSpy = rs.spyOn(httpClient, "getBytes").mockResolvedValueOnce(bytes);
 
     const result = await fetchImageBytes({
+      url: "https://ehgt.org/t/aa/bb/cc.jpg",
+      timeoutMs: 3200,
+    });
+
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200);
+    expect(result).toEqual(bytes);
+  });
+
+  test("test_fetchImageBytes_cached_ex_image_host_url_is_rewritten_to_ehgt", async () => {
+    // 宿主 DB 里已经存下来的 s.exhentai.org 封面 URL 也要能救回来。
+    const bytes = new Uint8Array([5, 6]);
+    const getBytesSpy = rs.spyOn(httpClient, "getBytes").mockResolvedValueOnce(bytes);
+
+    const result = await fetchImageBytes({
       url: "https://s.exhentai.org/t/aa/bb/cc.jpg",
       timeoutMs: 3200,
     });
 
-    expect(getBytesSpy).toHaveBeenCalledWith("https://s.exhentai.org/t/aa/bb/cc.jpg", 3200);
+    expect(getBytesSpy).toHaveBeenCalledWith("https://ehgt.org/t/aa/bb/cc.jpg", 3200);
     expect(result).toEqual(bytes);
   });
 

@@ -67,6 +67,12 @@ JHenTai 下载后会检查返回是否是 `text/html`。若是，会读取内容
 在展示组件里，JHenTai 对 `s.exhentai.org` 做过替换到 `ehgt.org` 的处理（`EHImage._replaceEXUrl`）。  
 这是一个兼容性修正点，后续插件可保留同类兜底策略。
 
+> **已落地（0.1.5）**：`src/utils/url.ts` 的 `MEDIA_HOST_ALIASES` 在
+> `sanitizeMediaUrl` / `ensureAllowedMediaUrl` 出口统一把 `s.exhentai.org`
+> 改写成 `ehgt.org`。放在 URL 出口而不是展示层，是为了让宿主 DB 里已缓存的旧
+> `s.exhentai.org` URL 在 `fetchImageBytes` 下载前也被改写。
+> 背景见 jiangtian616/JHenTai#203、breeze-project-org/Breeze#241。
+
 ## 3. 原图（Original）逻辑注意点
 
 JHenTai 解析时会同时提取“原图入口链接”（如果页面有）。  
