@@ -170,7 +170,7 @@ export function mapComicDetail(comicId: string, detail: DetailParsed): ComicDeta
         totalViews: 0,
         totalLikes: 0,
         totalComments: detail.totalComments ?? 0,
-        isFavourite: false,
+        isFavourite: detail.isFavorited,
         isLiked: false,
         allowComments: true,
         allowLike: false,

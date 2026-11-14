@@ -234,4 +234,34 @@ describe("detail contract", () => {
       totalPageCount: 450,
     });
   });
+
+  test("test_getComicDetail_maps_cloud_favorite_state_from_gallery_widget", async () => {
+    const pageShell = `
+      <div id="gd1"><img src="https://ehgt.org/c/detail-cover.jpg" /></div>
+      <div id="gn">Sample</div>
+      <div id="gdc"><div class="cs">Misc</div></div>
+      <div id="gdd"><table><tr><td class="gdt1">Length:</td><td class="gdt2">2 pages</td></tr></table></div>
+      <div id="taglist"></div>
+      <div id="gdf" onclick="return pop_fav()">__FAVORITE_WIDGET__</div>
+    `;
+    // 真实站点已收藏时的控件：`#fav` 内带分类图标，链接文本是分类名。
+    const favoritedWidget = `
+      <div style="float:left; cursor:pointer" id="fav"><div class="i" style="background-image:url(https://ehgt.org/g/fav.png); background-position:0px -2px; margin-left:10px" title="Favorites 0"></div></div>
+      <div style="float:left">&nbsp; <a id="favoritelink" href="#" onclick="return false">Favorites 0</a></div>
+    `;
+    // 真实站点未收藏时的控件：`#fav` 为空，链接文本是 "Add to Favorites"。
+    const plainWidget = `
+      <div style="float:left; cursor:pointer" id="fav"></div>
+      <div style="float:left">&nbsp; <a id="favoritelink" href="#" onclick="return false"><img src="https://ehgt.org/g/mr.gif" /> Add to Favorites</a></div>
+    `;
+
+    const getTextSpy = rs.spyOn(httpClient, "getText");
+    getTextSpy.mockResolvedValueOnce(pageShell.replace("__FAVORITE_WIDGET__", favoritedWidget));
+    const favorited = await getComicDetail({ comicId: "123456/abcdef" });
+    expect(favorited.data.normal.isFavourite).toBe(true);
+
+    getTextSpy.mockResolvedValueOnce(pageShell.replace("__FAVORITE_WIDGET__", plainWidget));
+    const plain = await getComicDetail({ comicId: "123456/abcdef" });
+    expect(plain.data.normal.isFavourite).toBe(false);
+  });
 });

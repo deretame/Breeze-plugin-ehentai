@@ -16,6 +16,25 @@ function parseCoverUrl($: CheerioAPI): string {
   return String($("#gd1 img").attr("src") ?? "").trim();
 }
 
+/**
+ * 解析「当前账号是否已收藏该画廊」。
+ *
+ * e-hentai 画廊页的收藏控件（`#gdf`）有两种形态：
+ * - 已收藏：`#fav` 内渲染分类图标 `<div class="i" title="Favorites N">`，
+ *   `#favoritelink` 的文本是收藏分类名；
+ * - 未收藏：`#fav` 为空，`#favoritelink` 显示 `<img ...> Add to Favorites`。
+ *
+ * 收藏弹窗（gallerypopups.php）成功后的 JS 也是按这两种形态改 `#fav` / `#favoritelink`，
+ * 因此以 `#fav .i` 是否存在为主判据，文本兜底。
+ */
+function parseIsFavorited($: CheerioAPI): boolean {
+  if ($("#fav .i").length > 0) {
+    return true;
+  }
+  const linkText = normalizeWhitespace($("#favoritelink").text());
+  return Boolean(linkText) && !/add to favorites/i.test(linkText);
+}
+
 function parseTagsByNamespace($: CheerioAPI): Record<string, string[]> {
   const tagsByNamespaceSet = new Map<string, Set<string>>();
 
@@ -121,6 +140,7 @@ export function parseDetailPage(html: string, comicId: string): DetailParsed {
     pageCount: parsePageCount(tableMap["length"] ?? ""),
     posted: tableMap.posted || undefined,
     favoritedCount: favoritedCount > 0 ? favoritedCount : undefined,
+    isFavorited: parseIsFavorited($),
     totalComments: countComments(html),
     ratingAverage: ratingAverage || undefined,
     ratingCount: ratingCount > 0 ? ratingCount : undefined,

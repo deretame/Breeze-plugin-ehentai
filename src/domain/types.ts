@@ -70,6 +70,7 @@ export type DetailParsed = {
   pageCount?: number;
   posted?: string;
   favoritedCount?: number;
+  isFavorited: boolean;
   totalComments?: number;
   ratingAverage?: string;
   ratingCount?: number;
